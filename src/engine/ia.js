@@ -1,7 +1,7 @@
 // Intelligence des raiders concurrents.
 import { actives, capi, flottant, pct, valeurParticipations } from './acces.js';
 import { gauss } from './alea.js';
-import { JOUEUR, RAIDERS, compte } from './config.js';
+import { JOUEUR, RAIDERS, compte, niveauIA } from './config.js';
 import { controlees, repartitionControle } from './controle.js';
 import { journal } from './creation.js';
 import { MANDATS_MAX, _prendreMandat, _restructurer, mandatsDe, peutRestructurer, tailleRemun } from './dirigeants.js';
@@ -31,9 +31,10 @@ export function jouerRaiders(s, r) {
   // Les fonctions publiques clonent l'état : on rapatrie le clone dans s et on relit les objets ensuite.
   const appliquer = (fn) => { try { Object.assign(s, fn()); return true; } catch (e) { if (globalThis.DEBUG_RAIDER) console.log("refus IA :", e.message); return false; } };
 
+  const niv = niveauIA(s);
   for (const rd of RAIDERS.slice().sort(() => r() - 0.5)) {
     if (!s.raiders[rd.id].actif) continue;
-    s.raiders[rd.id].humeur = Math.exp(0.12 * gauss(r));   // erreur d'appréciation du trimestre
+    s.raiders[rd.id].humeur = Math.exp(niv.humeur * gauss(r));   // erreur d'appréciation du trimestre
     const ctrl = ctrlR[rd.id];
     const nomR = rd.nom;
 
@@ -46,7 +47,7 @@ export function jouerRaiders(s, r) {
     for (const id of ctrl) {
       const c = s.societes[id];
       if (!c.active) continue;
-      if (peutRestructurer(s, c) && r() < 0.6) _restructurer(s, c, 'concurrent', rd.id);
+      if (peutRestructurer(s, c) && r() < niv.restructure) _restructurer(s, c, 'concurrent', rd.id);
       // Stratégie : Lemarchand sacrifie la R&D et la croissance au résultat immédiat ; Vauclair investit
       // là où l'effort rapporte le plus ; Meridian ne s'attarde pas assez pour s'en soucier
       const pe = parametresEffort(c);
@@ -93,7 +94,7 @@ export function jouerRaiders(s, r) {
     }
 
     // 4. OPA : une cible libre, abordable, pas trop chère par rapport à l'estimation
-    if (r() < rd.pOpa) {
+    if (r() < rd.pOpa * niv.audace) {
       let meilleure = null, score = -1;
       const ctlIA = repartitionControle(s);
       for (const c of actives(s)) {
@@ -116,8 +117,8 @@ export function jouerRaiders(s, r) {
       if (meilleure && appliquer(() => lancerOPA(s, rd.id, meilleure.id, meilleure.prime))) ctrlR[rd.id] = controlees(s, rd.id);
     }
 
-    // 5. Achats de blocs (un trimestre sur quatre environ, il n'achète rien)
-    let achats = r() < 0.25 ? 1 : 0;
+    // 5. Achats de blocs (au niveau normal, un trimestre sur quatre environ, il n'achète rien)
+    let achats = r() < niv.sansAchat ? niv.achats : 0;
     const budget = () => dispoActeur(s, rd.id, rd.margeMax) * (rd.style === 'valeur' ? 0.25 : 0.2);
     const candidats = actives(s).filter(c => !ctrlR[rd.id].has(c.id) && flottant(c) / c.actions > 0.15).map(c => {
       const ratio = c.prix / estimation(s, rd.id, c);
@@ -129,7 +130,7 @@ export function jouerRaiders(s, r) {
       return { id: c.id, attrait };
     }).filter(x => x.attrait > 0.08).sort((a, b) => b.attrait - a.attrait);
     for (const { id } of candidats) {
-      if (achats >= 1) break;
+      if (achats >= niv.achats) break;
       const b = budget();
       if (b < 1) break;
       const c = s.societes[id];

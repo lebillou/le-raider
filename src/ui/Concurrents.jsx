@@ -1,5 +1,6 @@
 import React from 'react';
 import { JOUEUR, RAIDERS, actives, controlees, fortune, mandatsDe, pct } from '../engine/index.js';
+import { libelleReglages } from './format.js';
 import { fM, fMp, fP } from './format.js';
 
 export function Concurrents({ s, onSel }) {
@@ -9,6 +10,7 @@ export function Concurrents({ s, onSel }) {
   return (
     <div>
       <h2 className="rs">Les concurrents</h2>
+      <div className="sous">{libelleReglages(s)}</div>
       <div className="sous">Vous êtes {rang}{rang === 1 ? 'er' : 'e'} sur {classement.length} : {classement.map(x => `${x.nom} ${fM(x.f)}`).join(' · ')}</div>
       {RAIDERS.map(r => {
         const cp = s.raiders[r.id];

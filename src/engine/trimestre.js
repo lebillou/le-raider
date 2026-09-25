@@ -1,7 +1,7 @@
 // Clôture d'un trimestre : conjoncture, exploitation, faillites, cours, fin de partie.
 import { actives, fortune, valeurParticipations, valeurPortefeuille } from './acces.js';
 import { gauss, rngDe } from './alea.js';
-import { IMPOT, JOUEUR, RAIDERS, clamp, compte } from './config.js';
+import { IMPOT, JOUEUR, RAIDERS, clamp, compte, difficulte } from './config.js';
 import { controlees, detentionEffective, repartitionControle } from './controle.js';
 import { financesActeur, proprietaireSociete } from './courtage.js';
 import { MONTEE_EN_CHARGE, journal } from './creation.js';
@@ -19,15 +19,15 @@ import { prixCible } from './valorisation.js';
 // ---------- FIN DE TRIMESTRE ----------
 export const EVENEMENTS = [
   { id: 'petrole', p: 0.03, texte: 'Choc pétrolier : les énergéticiens flambent, le transport encaisse.', effet: (s) => { s.conjSecteurs.energie += 0.6; s.conjSecteurs.transport -= 0.5; } },
-  { id: 'crise', p: 0.025, texte: 'Crise de confiance : la conjoncture se retourne brutalement.', effet: (s) => { s.conj = clamp(s.conj - 0.6, -1, 1); } },
+  { id: 'crise', defavorable: true, p: 0.025, texte: 'Crise de confiance : la conjoncture se retourne brutalement.', effet: (s) => { s.conj = clamp(s.conj - 0.6, -1, 1); } },
   { id: 'boom', p: 0.03, texte: 'Euphorie technologique : les valeurs de croissance s\'envolent.', effet: (s) => { s.conjSecteurs.techno += 0.6; } },
   { id: 'baisse', p: 0.04, texte: 'La banque centrale abaisse ses taux plus vite que prévu.', effet: (s) => { s.taux = clamp(s.taux - 0.0075, 0.005, 0.15); } },
-  { id: 'hausse', p: 0.04, texte: 'Poussée d\'inflation : la banque centrale relève ses taux.', effet: (s) => { s.taux = clamp(s.taux + 0.0075, 0.005, 0.15); } },
-  { id: 'scandale', p: 0.05, cible: true, texte: (c) => `Scandale comptable chez ${c.nom} : le titre décroche de 25 %.`, effet: (s, c) => { c.prix *= 0.75; c.ca *= 0.95; c.marge *= 0.9; } },
+  { id: 'hausse', defavorable: true, p: 0.04, texte: 'Poussée d\'inflation : la banque centrale relève ses taux.', effet: (s) => { s.taux = clamp(s.taux + 0.0075, 0.005, 0.15); } },
+  { id: 'scandale', defavorable: true, p: 0.05, cible: true, texte: (c) => `Scandale comptable chez ${c.nom} : le titre décroche de 25 %.`, effet: (s, c) => { c.prix *= 0.75; c.ca *= 0.95; c.marge *= 0.9; } },
   { id: 'rumeur', p: 0.05, cible: true, texte: (c) => `Rumeur d'offre sur ${c.nom} : le titre bondit de 18 %.`, effet: (s, c) => { c.prix *= 1.18; } },
   { id: 'contrat', p: 0.05, cible: true, texte: (c) => `${c.nom} remporte un contrat majeur : chiffre d'affaires +10 %.`, effet: (s, c) => { c.ca *= 1.10; } },
-  { id: 'greve', p: 0.04, cible: true, texte: (c) => `Grève dure chez ${c.nom} : un trimestre de production perdu.`, effet: (s, c) => { c.cash -= 0.03 * c.ca; } },
-  { id: 'immo', p: 0.02, texte: 'Retournement immobilier : les foncières se replient, les banques provisionnent.', effet: (s) => { s.conjSecteurs.immo -= 0.6; s.conjSecteurs.banque -= 0.3; } },
+  { id: 'greve', defavorable: true, p: 0.04, cible: true, texte: (c) => `Grève dure chez ${c.nom} : un trimestre de production perdu.`, effet: (s, c) => { c.cash -= 0.03 * c.ca; } },
+  { id: 'immo', defavorable: true, p: 0.02, texte: 'Retournement immobilier : les foncières se replient, les banques provisionnent.', effet: (s) => { s.conjSecteurs.immo -= 0.6; s.conjSecteurs.banque -= 0.3; } },
 ];
 
 export function finTrimestre(s0) {
@@ -46,8 +46,9 @@ export function finTrimestre(s0) {
 
   // 2. Événements
   const socs = actives(s);
+  const dif = difficulte(s);
   for (const ev of EVENEMENTS) {
-    if (r() > ev.p) continue;
+    if (r() > ev.p * (ev.defavorable ? dif.evenements : 1)) continue;
     if (ev.cible) {
       const c = socs[Math.floor(r() * socs.length)];
       ev.effet(s, c); journal(s, 'evenement', ev.texte(c));
@@ -140,7 +141,7 @@ export function finTrimestre(s0) {
   for (const c of actives(s)) {
     c.sentiment = clamp(0.92 * (c.sentiment || 0) + 0.05 * gauss(r), -0.5, 0.5);
     const cible = prixCible(s, c) * Math.exp(c.sentiment);
-    const vol = SECT_BY_ID[c.secteur].vol;
+    const vol = SECT_BY_ID[c.secteur].vol * dif.volatilite;
     c.prix = Math.max(0.01, c.prix * Math.exp(0.25 * Math.log(cible / c.prix) + vol * gauss(r)));
     c.hist.push(c.prix); if (c.hist.length > 24) c.hist.shift();
     c.histCa.push(c.ca); if (c.histCa.length > 24) c.histCa.shift();

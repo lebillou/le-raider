@@ -37,7 +37,7 @@ export default function App({ initial = null, ongletInitial = 'cote', selectionI
   const choisir = (id) => { setSel(id); if (!large) setOnglet('societe'); };
   const fin = () => setS(finTrimestre(s));
   const nouvelle = () => setDialogue(true);
-  const creer = (ans) => { const n = nouvellePartie(undefined, { nbTours: 4 * ans }); setS(n); sauver(n); setSel(null); setOnglet('cote'); setDialogue(false); };
+  const creer = (ans, reglages = {}) => { const n = nouvellePartie(undefined, { nbTours: 4 * ans, ...reglages }); setS(n); sauver(n); setSel(null); setOnglet('cote'); setDialogue(false); };
   const prolongerPartie = () => { setS(prolonger(s, 10)); setOnglet('cote'); };
   useEffect(() => { if (s.fini) setOnglet('bilan'); }, [s.fini]);
 

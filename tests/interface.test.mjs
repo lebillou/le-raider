@@ -57,7 +57,7 @@ test('toutes les fenêtres d\'ordre', () => {
   contient(rendre(h(ui.Fenetre, { s, action: { type: 'strategie', cible: 'F2' }, onFermer() {}, onValider() {} })), 'Croissance visée', 'Budget de R&amp;D', 'Charges stratégiques', 'Gestion habituelle');
   contient(rendre(h(ui.App, { initial: s, selectionInitiale: 'F2' })), 'Marge cible', 'Croissance visée', 'Croissance et ');
   contient(rendre(h(ui.Creation, { s, onFermer() {}, onValider() {} })), 'Créer une société', 'Raison sociale', 'Apports en nature', 'Apport en numéraire');
-  contient(rendre(h(ui.NouvellePartie, { onFermer() {}, onCreer() {} })), 'Durée de la partie');
+  contient(rendre(h(ui.NouvellePartie, { onFermer() {}, onCreer() {} })), 'Durée de la partie', 'Difficulté', 'Vos concurrents', 'Impitoyables');
 });
 
 test('bilan de fin de partie', () => {

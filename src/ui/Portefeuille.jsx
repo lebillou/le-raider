@@ -26,7 +26,7 @@ export function Portefeuille({ s, onSel, onCreer }) {
   const pos = actives(s).filter(c => c.actionnaires[JOUEUR] > 0).sort((a, b) => b.actionnaires[JOUEUR] * b.prix - a.actionnaires[JOUEUR] * a.prix);
   const indirectes = [...ctrl].filter(id => !(s.societes[id].actionnaires[JOUEUR] > 0)).map(id => s.societes[id]);
   const j = s.joueur, f = fortune(s);
-  const rendAnnuel = s.tour >= 4 ? Math.pow(Math.max(f, 0.01) / 25, 4 / s.tour) - 1 : null;
+  const rendAnnuel = s.tour >= 4 ? Math.pow(Math.max(f, 0.01) / j.histFortune[0], 4 / s.tour) - 1 : null;
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}><h2 className="rs" style={{ marginRight: 'auto' }}>Votre fortune</h2>{onCreer && !s.fini && <button onClick={onCreer}>Créer une société</button>}</div>

@@ -23,14 +23,14 @@ Tout le jeu est en français : interface, messages d'erreur, journal, noms de fo
 ```
 src/engine/     moteur du jeu, JavaScript pur, sans dépendance ni accès au DOM
   index.js      réexporte tout ; l'interface et les tests importent depuis ici
-  config.js     constantes (impôt, marge, seuils, prime du noyau dur), raiders, acteurs
+  config.js     constantes (impôt, marge, seuils, prime du noyau dur), raiders, acteurs, niveaux de jeu
   alea.js       aléa déterministe (mulberry32) : une graine = une partie reproductible
   secteurs.js   10 secteurs + holding ; noms des 50 sociétés
   finance.js    dette bancaire et obligataire, levier, notation, taux, capacité d'emprunt
   acces.js      sociétés actives, capitalisation, détentions, fortune
   controle.js   règle de contrôle, groupes de vote, cascade, autocontrôle
   valorisation.js  prix cible (valeur fondamentale), PER, résultat
-  univers.js    nouvellePartie(graine, { nbTours })
+  univers.js    nouvellePartie(graine, { nbTours, difficulte, niveauIA })
   creation.js   création de sociétés et holdings, apports en nature (titres, branche d'activité) ; journal()
   transactions.js  débit/crédit, antitrust, aperçus d'achat et de vente
   marche.js     acheter, vendre, lancerOPA (OPA, OPE, offres mixtes), apporter à une offre
@@ -80,6 +80,7 @@ Pour chaque société active : la somme des détentions égale le nombre d'actio
 - **Comptes courants** (`comptes.js`) : le joueur avance de l'argent à une société qu'il contrôle, sans dilution, au taux directeur + 2 points (charge déductible, versée chaque trimestre) ; remboursable quand il la contrôle et qu'elle a la trésorerie. Hors levier et notation, déduit de la valeur des actions (`prixCible`), compté dans `fortune` ; transmis à l'absorbante en cas de fusion, perdu en cas de liquidation.
 - **Obligations** : taux fixe, remboursées à l'échéance (5, 7 ou 10 ans), sans covenant. Classique jusqu'à 4× l'EBIT, haut rendement jusqu'à 6×, convertible jusqu'à 5× avec conversion à +30 %. À l'échéance : trésorerie, puis banque ; sinon défaut, les porteurs convertissent le reliquat en actions à la moitié du cours.
 - **Dirigeants** : au plus 5 présidences. Fixe = 0,1 + 0,03 × √CA (M€/an), plafonné à 8 % de l'EBIT ; bonus 0 à 150 % du fixe (croissance de l'EBIT et bourse contre l'indice) ; options annuelles levables à 3 ans en règlement net. Révocation automatique si le contrôle change de mains.
+- **Niveaux** (`config.js`, `s.reglages`) : choisis au lancement. Difficulté (`DIFFICULTES`) : facile, normal, difficile ; votre capital de départ (40, 25, 15 M€), la fréquence des événements défavorables (× 0,5, 1, 1,5 : crise, hausse des taux, scandale, grève, retournement immobilier) et la volatilité des cours (× 0,8, 1, 1,2). Niveau des raiders (`NIVEAUX_IA`) : débutants, aguerris, experts, impitoyables ; leur capital (15, 25, 25, 40 M€), l'erreur de leurs estimations, leur audace en OPA, leurs trimestres sans achat, le nombre d'achats par trimestre et leur zèle à restructurer. Le réglage normal reproduit exactement le jeu de référence ; une sauvegarde sans `reglages` se joue au niveau normal. Lire les paramètres par `difficulte(s)` et `niveauIA(s)`.
 - **Raiders** (`ia.js`) : Vauclair (valeur, sans dette), Lemarchand (OPA à crédit, filiales endettées et vidées), Meridian (se glisse dans les cibles du joueur). Ils agissent à la clôture, après les ordres du joueur, avec au plus un achat, une vente et une OPA par trimestre. Les ordres de l'IA passent par `appliquer()`, qui avale les refus : pour voir les erreurs, `globalThis.DEBUG_RAIDER = true`.
 
 ## Équilibre : repères actuels
@@ -95,6 +96,8 @@ Pour chaque société active : la somme des détentions égale le nombre d'actio
 | Raider joueur | ~450–850 | la règle des 25 % rend le raid dominant |
 | Raider + haut rendement | ~400–1000 | médiane plus haute, pire cas divisé par deux, défauts fréquents |
 | Vauclair / Lemarchand / Meridian (IA) | ~320–440 / ~600–800 / ~570–1000 | |
+
+Autres niveaux (`npm run equilibrage -- --ia expert --seulement Indice,Raider`), médianes du raider joueur puis de Vauclair / Lemarchand / Meridian : IA débutantes ~710, ~200 / ~150 / ~240 ; expertes ~440, ~550 / ~1300 / ~1750 ; impitoyables ~370, ~950 / ~2200 / ~2650. Difficulté facile : indice ~160, raider ~1240 ; difficile : indice ~95, raider ~310.
 
 Sur 12 graines, une médiane de raider varie de ±20 à 40 % au moindre changement de trajectoire de l'IA : avant de conclure, comparer les deux variantes sur une trentaine de graines. Un changement qui déplace une médiane de plus de 30 % doit être expliqué dans le message de commit.
 

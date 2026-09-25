@@ -2,7 +2,7 @@ import React from 'react';
 import { JOUEUR, RAIDERS, controlees, fortune, libelleTour, mandatsDe, titre } from '../engine/index.js';
 import { COULEURS, CourbeFortune, seriesFortune } from './Graphiques.jsx';
 import { Chronologie } from './Journal.jsx';
-import { fM, fMp } from './format.js';
+import { fM, fMp, libelleReglages } from './format.js';
 
 export function Bilan({ s, onNouvelle, onProlonger, onSel }) {
   const f = fortune(s);
@@ -35,6 +35,7 @@ export function Bilan({ s, onNouvelle, onProlonger, onSel }) {
         <div className="tampon">{s.fini?.raison === 'ruine' ? 'Ruine' : `Clôture des ${s.nbTours / 4} ans`}</div>
         <div className="grand">{fM(f)}</div>
         <div className="sous" style={{ fontSize: 15 }}>{titre(Math.max(f, 0))} · {classement.findIndex(x => x.id === JOUEUR) + 1}{classement[0].id === JOUEUR ? 'er' : 'e'} sur {classement.length}</div>
+        <div className="sous">{libelleReglages(s)}</div>
         <div className="actions" style={{ justifyContent: 'center' }}>
           {s.fini?.raison === 'terme' && <button className="plein" onClick={onProlonger}>Prolonger de 10 ans</button>}
           <button onClick={onNouvelle}>Nouvelle partie</button>

@@ -1,3 +1,4 @@
+import { difficulte, niveauIA } from '../engine/index.js';
 export const nf = (d) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 export const fM = (v) => {
@@ -22,3 +23,6 @@ export const classeVar = (v) => v > 0.0005 ? 'hausse' : v < -0.0005 ? 'baisse' :
 export const signe = (v, d = 1) => (v > 0 ? '+' : '') + nf(d).format(100 * v) + ' %';
 // Écart en points de pourcentage
 export const fPts = (v, d = 1) => (v > 0 ? '+' : '') + nf(d).format(100 * v) + ' pt';
+
+// Réglages de la partie, pour l'affichage
+export const libelleReglages = (s) => `Difficulté ${difficulte(s).nom.toLowerCase()} · concurrents ${niveauIA(s).nom.toLowerCase()}`;

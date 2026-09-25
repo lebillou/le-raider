@@ -1,16 +1,19 @@
 // Banc d'essai de l'équilibre : fortunes finales des stratégies de référence et des raiders.
-// Usage : npm run equilibrage [-- --graines 12 --ans 20]
+// Usage : npm run equilibrage [-- --graines 12 --ans 20 --difficulte normal --ia normal --seulement Indice,Raider]
 // À relancer après toute modification d'un paramètre de jeu ; comparer aux repères de CLAUDE.md.
 import * as m from '../src/engine/index.js';
 
 const J = m.JOUEUR;
 const arg = (nom, def) => { const i = process.argv.indexOf('--' + nom); return i > 0 ? Number(process.argv[i + 1]) : def; };
 const GRAINES = arg('graines', 12), TOURS = 4 * arg('ans', 20), BASE = 300;
+const texte = (nom, def) => { const i = process.argv.indexOf('--' + nom); return i > 0 ? process.argv[i + 1] : def; };
+const REGLAGES = { difficulte: texte('difficulte', 'normal'), niveauIA: texte('ia', 'normal') };
+const SEULEMENT = texte('seulement', null)?.split(',');
 const f0 = (x) => Math.round(x).toString();
 const quartiles = (a) => { const t = [...a].sort((x, y) => x - y); const q = (p) => t[Math.min(t.length - 1, Math.floor(p * t.length))]; return [t[0], q(0.25), q(0.5), q(0.75), t[t.length - 1]]; };
 
 function jouer(graine, strategie) {
-  let s = m.nouvellePartie(graine, { nbTours: TOURS });
+  let s = m.nouvellePartie(graine, { nbTours: TOURS, ...REGLAGES });
   for (let t = 0; t < TOURS && !s.fini; t++) { s = strategie(s, t); s = m.finTrimestre(s); }
   return s;
 }
@@ -67,16 +70,16 @@ const raider = (avecHY) => (s) => {
 };
 
 const strategies = [['Indice', indice], ['Value (PER)', value], ['Bâtisseur', batisseur], ['Bâtisseur + R&D', batisseurRD], ['Raider', raider(false)], ['Raider + haut rendement', raider(true)]];
-console.log(`Équilibre sur ${GRAINES} graines, ${TOURS / 4} ans, 25 M€ au départ. Fortune finale en M€ : min / q1 / médiane / q3 / max\n`);
+console.log(`Équilibre sur ${GRAINES} graines, ${TOURS / 4} ans, difficulté ${REGLAGES.difficulte}, IA ${REGLAGES.niveauIA}. Fortune finale en M€ : min / q1 / médiane / q3 / max\n`);
 console.log('| Acteur | min | q1 | médiane | q3 | max | ruines |');
 console.log('|---|---|---|---|---|---|---|');
 const raiders = Object.fromEntries(m.RAIDERS.map(r => [r.id, []]));
-for (const [nom, st] of strategies) {
+for (const [nom, st] of strategies.filter(([nom]) => !SEULEMENT || SEULEMENT.includes(nom))) {
   const f = [];
   for (let g = BASE; g < BASE + GRAINES; g++) {
     const s = jouer(g, st);
     f.push(m.fortune(s));
-    if (nom === 'Indice') for (const r of m.RAIDERS) raiders[r.id].push(s.raiders[r.id].actif ? m.fortune(s, r.id) : 0);
+    if (nom === (SEULEMENT ? SEULEMENT[0] : 'Indice')) for (const r of m.RAIDERS) raiders[r.id].push(s.raiders[r.id].actif ? m.fortune(s, r.id) : 0);
   }
   console.log(`| ${nom} | ${quartiles(f).map(f0).join(' | ')} | ${f.filter(x => x < 0).length} |`);
 }

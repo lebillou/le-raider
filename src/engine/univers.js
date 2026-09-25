@@ -1,7 +1,7 @@
 // Génération d'une nouvelle partie.
 import { actives, capi, flottant, fortune } from './acces.js';
 import { gauss, mulberry32 } from './alea.js';
-import { NB_TOURS, RAIDERS, estRaider } from './config.js';
+import { DIFFICULTES, NB_TOURS, NIVEAUX_IA, RAIDERS, estRaider } from './config.js';
 import { journal } from './creation.js';
 import { ebitAnnuel } from './finance.js';
 import { NOMS, SECTEURS, SECT_BY_ID } from './secteurs.js';
@@ -34,15 +34,18 @@ export function genererSociete(r, secId, nom, idx, rangTaille) {
 
 export function nouvellePartie(graine = Math.floor(Math.random() * 1e9), options = {}) {
   const r = mulberry32(graine);
+  const reglages = { difficulte: DIFFICULTES[options.difficulte] ? options.difficulte : 'normal', niveauIA: NIVEAUX_IA[options.niveauIA] ? options.niveauIA : 'normal' };
+  const dif = DIFFICULTES[reglages.difficulte], ia = NIVEAUX_IA[reglages.niveauIA];
   const s = {
     graine, tour: 0, nbTours: options.nbTours || NB_TOURS, taux: 0.045, conj: 0, conjSecteurs: {},
     societes: {}, ordre: [],
-    joueur: { cash: 25, marge: 0, histFortune: [25], fortuneMax: 25, remTotale: 0 },
+    reglages,
+    joueur: { cash: dif.capital, marge: 0, histFortune: [dif.capital], fortuneMax: dif.capital, remTotale: 0 },
     indice: 100,
     raiders: {}, offres: [], nbFondees: 0,
     journal: [], evenements: [], fini: null, stats: { opa: 0, fusions: 0, faillites: 0 },
   };
-  for (const rd of RAIDERS) s.raiders[rd.id] = { cash: rd.cash, marge: 0, actif: true, histFortune: [], biais: {}, acquis: {}, remTotale: 0 };
+  for (const rd of RAIDERS) s.raiders[rd.id] = { cash: rd.cash * ia.capital, marge: 0, actif: true, histFortune: [], biais: {}, acquis: {}, remTotale: 0 };
   for (const sec of SECTEURS) s.conjSecteurs[sec.id] = 0;
   s.conjSecteurs.holding = 0;
   const noyaux = {};
@@ -86,16 +89,18 @@ export function nouvellePartie(graine = Math.floor(Math.random() * 1e9), options
   // Les raiders entrent en scène avec deux participations minoritaires chacun, payées au prix du marché
   for (const rd of RAIDERS) {
     const cp = s.raiders[rd.id];
-    for (const c of actives(s)) cp.biais[c.id] = rd.sigma * gauss(r);
+    for (const c of actives(s)) cp.biais[c.id] = rd.sigma * ia.erreur * gauss(r);
     const moyennes = actives(s).filter(c => capi(c) < 300 && !Object.keys(c.actionnaires).some(h => estRaider(s, h))).sort(() => r() - 0.5);
     for (const c of moyennes.slice(0, 2)) {
       const f = Math.min(0.08 + 0.12 * r(), flottant(c) / c.actions * 0.5, cp.cash * 0.3 / capi(c));
       const t = f * c.actions;
       c.actionnaires.public -= t; c.actionnaires[rd.id] = t; cp.acquis[c.id] = c.prix;
-      cp.cash -= t * c.prix;   // même capital de départ que vous : 25 M€, dont une partie déjà placée
+      cp.cash -= t * c.prix;   // capital de départ selon leur niveau, dont une partie déjà placée
     }
     cp.histFortune.push(fortune(s, rd.id));
   }
-  journal(s, 'info', `Vous démarrez avec ${s.joueur.cash} M€ et une ligne de crédit sur marge, comme chacun de vos trois concurrents. ${s.nbTours / 4} ans pour bâtir un empire.`, 'marche');
+  const capitalIA = RAIDERS[0].cash * ia.capital;
+  const reference = reglages.difficulte === 'normal' && reglages.niveauIA === 'normal';
+  journal(s, 'info', `Vous démarrez avec ${s.joueur.cash} M€ et une ligne de crédit sur marge, ${capitalIA === dif.capital ? 'comme chacun de vos trois concurrents' : `face à trois concurrents qui en ont ${capitalIA} chacun`}.${reference ? '' : ` Réglages : ${dif.libelle}, concurrents ${ia.nom.toLowerCase()}.`} ${s.nbTours / 4} ans pour bâtir un empire.`, 'marche');
   return s;
 }
