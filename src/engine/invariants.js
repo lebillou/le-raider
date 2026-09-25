@@ -16,6 +16,7 @@ export function verifierInvariants(s) {
     for (const k of ['margeRef', 'margeLatente', 'effort', 'croissanceVisee']) if (c[k] !== undefined && !isFinite(c[k])) err.push(`${c.id}.${k} = ${c[k]}`);
     if (c.effort !== undefined && (c.effort < -1e-9 || c.effort > effortMax(c) + 1e-9)) err.push(`${c.id}: budget ${c.effort} hors bornes`);
     if (c.croissanceVisee !== undefined && (c.croissanceVisee < CROISSANCE_MIN - 1e-9 || c.croissanceVisee > CROISSANCE_MAX + 1e-9)) err.push(`${c.id}: croissance visée ${c.croissanceVisee} hors bornes`);
+    for (const [h, m] of Object.entries(c.comptesCourants || {})) if (!(m >= 0) || !isFinite(m)) err.push(`${c.id}: compte courant de ${h} = ${m}`);
     for (const o of c.obligations || []) if (!(o.nominal > 0) || !isFinite(o.coupon) || !(o.echeance > 0)) err.push(`${c.id}: obligation invalide ${JSON.stringify(o)}`);
   }
   const j = s.joueur;

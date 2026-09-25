@@ -12,6 +12,7 @@ import { DECOTE_BLOC } from './marche.js';
 import { traiterEcheances } from './obligations.js';
 import { SECTEURS, SECT_BY_ID, estHolding } from './secteurs.js';
 import { croissanceSecteur, evolutionStrategique } from './strategie.js';
+import { compteCourant, tauxCompteCourant } from './comptes.js';
 import { cloner, crediter } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
@@ -56,6 +57,7 @@ export function finTrimestre(s0) {
   // 3. Exploitation de chaque société
   const dividendes = {};   // encaissements reportés pour ne pas mêler ordre et effets
   const remunerations = {};
+  const interetsCC = {};   // intérêts des comptes courants, versés aux prêteurs
   for (const c of actives(s)) {
     const sec = SECT_BY_ID[c.secteur];
     const conj = clamp(sec.beta * s.conj + s.conjSecteurs[c.secteur], -1.2, 1.2);
@@ -69,7 +71,11 @@ export function finTrimestre(s0) {
     // La marge revient vers sa référence, modulée par la conjoncture
     c.marge = clamp(c.marge + 0.25 * (c.margeRef * (1 + 0.5 * conj) - c.marge) + 0.004 * gauss(r), -0.15, 0.6);
     const ebitT = ebitAnnuel(c) / 4;
-    const interets = c.dette * tauxEmprunt(s, c) / 4 + couponsAnnuels(c) / 4 - Math.max(0, c.cash) * Math.max(0, s.taux - 0.01) / 4;
+    let interets = c.dette * tauxEmprunt(s, c) / 4 + couponsAnnuels(c) / 4 - Math.max(0, c.cash) * Math.max(0, s.taux - 0.01) / 4;
+    for (const [h, m] of Object.entries(c.comptesCourants || {})) {
+      const i = m * tauxCompteCourant(s) / 4;
+      interets += i; interetsCC[h] = (interetsCC[h] || 0) + i;
+    }
     // Fixe du dirigeant : charge déductible, versée chaque trimestre
     const fixeT = c.ceo ? fixeAnnuel(c) / 4 : 0;
     if (fixeT > 0) {
@@ -99,6 +105,7 @@ export function finTrimestre(s0) {
   }
   for (const c of actives(s)) c.divRecus = dividendes[c.id] || 0;
   for (const [h, m] of Object.entries(dividendes)) crediter(s, h, m);
+  for (const [h, m] of Object.entries(interetsCC)) if (h === JOUEUR || s.raiders[h]?.actif) crediter(s, h, m);
   for (const [h, m] of Object.entries(remunerations)) {
     if (h !== JOUEUR && !s.raiders[h]?.actif) continue;
     crediter(s, h, m);
@@ -120,7 +127,8 @@ export function finTrimestre(s0) {
       c.active = false; c.faillite = true; c.prix = 0;
       s.stats.faillites++;
       const partJ = detentionEffective(s, c.id, ctrlAvant);
-      journal(s, 'faillite', `${c.nom} est placée en liquidation judiciaire ; les actionnaires perdent tout${partJ > 0.01 ? ` (vous déteniez ${Math.round(100 * partJ)} %)` : ''}.`);
+      const ccJ = compteCourant(c);
+      journal(s, 'faillite', `${c.nom} est placée en liquidation judiciaire ; les actionnaires perdent tout${partJ > 0.01 ? ` (vous déteniez ${Math.round(100 * partJ)} %)` : ''}${ccJ > 0.05 ? `, et votre compte courant de ${ccJ.toFixed(1)} M€ est perdu` : ''}.`);
       for (const d of actives(s)) if (d.actionnaires[c.id]) { d.actionnaires.public += d.actionnaires[c.id]; delete d.actionnaires[c.id]; }
       s.offres = s.offres.filter(o => o.cible !== c.id);
     }

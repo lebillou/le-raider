@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { CROISSANCE_MAX, CROISSANCE_MIN, IMPOT, LIBELLE_EFFORT, PLAFOND_MARGE, apercuStrategie, croissanceDe, definirStrategie, effortDe, effortMax, parametresEffort, ACQUISITION_OPTIONS, ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_PAPIER, DELAI_EMISSION, DELAI_RESTRUCTURATION, IMPOT_PLUS_VALUE, IMPOT_REVENU, JOUEUR, MANDATS_MAX, MARGE_MAX, MATURITES, MODES_EMISSION, PENALITE_ANTICIPE, PRIME_NOYAU, RAIDERS, SECT_BY_ID, TYPES_OBLIGATIONS, acheter, actives, apercuAchat, apercuEmission, apercuMandat, apercuOPA, apercuObligations, apercuVente, apporterAOffre, caParEuro, capaciteEmprunt, capaciteObligataire, cederActifs, controlees, dividendeExceptionnel, emettreActions, emettreObligations, emprunter, estHolding, fixeAnnuel, fixerDividende, fusionner, investir, lancerOPA, levier, libelleTour, ltv, montantMaxEmission, multiple, natureOffre, nomDetenteur, nomGroupe, notation, pct, prendreMandat, quitterMandat, racheterActions, rembourser, rembourserObligation, restructurer, resultatNetAnnuel, tauxApport, tauxEmprunt, valeurPortefeuille, vendre } from '../engine/index.js';
+import { FRAIS_RESERVEE, apporterCompteCourant, compteCourant, rembourserCompteCourant, tauxCompteCourant, CROISSANCE_MAX, CROISSANCE_MIN, IMPOT, LIBELLE_EFFORT, PLAFOND_MARGE, apercuStrategie, croissanceDe, definirStrategie, effortDe, effortMax, parametresEffort, ACQUISITION_OPTIONS, ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_PAPIER, DELAI_EMISSION, DELAI_RESTRUCTURATION, IMPOT_PLUS_VALUE, IMPOT_REVENU, JOUEUR, MANDATS_MAX, MARGE_MAX, MATURITES, MODES_EMISSION, PENALITE_ANTICIPE, PRIME_NOYAU, RAIDERS, SECT_BY_ID, TYPES_OBLIGATIONS, acheter, actives, apercuAchat, apercuEmission, apercuMandat, apercuOPA, apercuObligations, apercuVente, apporterAOffre, caParEuro, capaciteEmprunt, capaciteObligataire, cederActifs, controlees, dividendeExceptionnel, emettreActions, emettreObligations, emprunter, estHolding, fixeAnnuel, fixerDividende, fusionner, investir, lancerOPA, levier, libelleTour, ltv, montantMaxEmission, multiple, natureOffre, nomDetenteur, nomGroupe, notation, pct, prendreMandat, quitterMandat, racheterActions, rembourser, rembourserObligation, restructurer, resultatNetAnnuel, tauxApport, tauxEmprunt, valeurPortefeuille, vendre } from '../engine/index.js';
 import { fE, fM, fMp, fP, fPts, fT, nf } from './format.js';
 
 export const LIBELLES = {
   acheter: 'Acheter des titres', vendre: 'Vendre des titres', opa: 'Lancer une offre',
   emprunter: 'Emprunter', rembourser: 'Rembourser la dette', dividende: 'Dividende exceptionnel',
   rachat: 'Racheter des actions', investir: 'Investir', ceder: 'Céder des actifs',
-  restructurer: 'Plan de restructuration', payout: 'Politique de dividende', fusion: 'Absorber une filiale', apporter: "Apporter à l'offre", emission: 'Augmentation de capital', mandat: 'Vous faire élire PDG', strategie: 'Croissance, R&D et marketing', obligations: 'Émettre des obligations', rachatObl: 'Rembourser par anticipation', demission: 'Démissionner de la présidence',
+  restructurer: 'Plan de restructuration', payout: 'Politique de dividende', fusion: 'Absorber une filiale', apporter: "Apporter à l'offre", emission: 'Augmentation de capital', mandat: 'Vous faire élire PDG', strategie: 'Croissance, R&D et marketing', compteCourant: 'Avance en compte courant', rembourserCC: 'Rembourser votre compte courant', obligations: 'Émettre des obligations', rachatObl: 'Rembourser par anticipation', demission: 'Démissionner de la présidence',
 };
 
 export function Fenetre({ s, action, onFermer, onValider }) {
@@ -22,6 +22,7 @@ export function Fenetre({ s, action, onFermer, onValider }) {
   const [payout, setPayout] = useState(c.payout);
   const [absorbee, setAbsorbee] = useState('');
   const [modeEm, setModeEm] = useState('droits');
+  const [souscripteur, setSouscripteur] = useState(JOUEUR);
   const [souscrire, setSouscrire] = useState(true);
   const [investisseur, setInvestisseur] = useState(RAIDERS.find(r => s.raiders[r.id].actif)?.id || '');
   const [typeObl, setTypeObl] = useState('classique');
@@ -36,6 +37,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
     if (t === 'vendre') return (c.actionnaires[acteur] || 0) * c.prix;
     if (t === 'acheter' || t === 'opa') return acteur === JOUEUR ? s.joueur.cash + Math.max(0, MARGE_MAX * valeurPortefeuille(s) - s.joueur.marge) : s.societes[acteur].cash;
     if (t === 'emprunter') return capaciteEmprunt(c, s);
+    if (t === 'compteCourant') return s.joueur.cash + Math.max(0, MARGE_MAX * valeurPortefeuille(s) - s.joueur.marge);
+    if (t === 'rembourserCC') return Math.min(c.cash, compteCourant(c));
     if (t === 'emission') return montantMaxEmission(c, modeEm);
     if (t === 'obligations') return capaciteObligataire(s, c, typeObl);
     if (t === 'rembourser') return Math.min(c.cash, c.dette);
@@ -100,7 +103,7 @@ export function Fenetre({ s, action, onFermer, onValider }) {
       apercu = [['Fixe perdu', `${fMp(fixeAnnuel(c))} par an`], ['Options annulées', nonAcquises.length ? `${fT(nonAcquises.reduce((x, o) => x + o.n, 0))}, valeur intrinsèque ${fMp(nonAcquises.reduce((x, o) => x + o.n * Math.max(0, c.prix - o.K), 0))}` : 'aucune']];
     }
     if (t === 'emission' && m > 0) {
-      const a = apercuEmission(s, c.id, { montant: m, mode: modeEm, souscrireJoueur: souscrire, investisseur });
+      const a = apercuEmission(s, c.id, { montant: m, mode: modeEm, souscrireJoueur: souscrire, investisseur, souscripteur });
       apercu = a.vide ? [['Résultat', 'aucune souscription'], ...a.decisions] : [
         ["Prix d'émission", `${fE(a.prixEm)} (décote ${fP(a.decote, 1)})`],
         ['Actions nouvelles', `${fT(a.n)} (${fP(a.dilution, 1)} du capital après)`],
@@ -137,6 +140,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
         [`Bilan à ${a.ans} ans pour l'actionnaire`, <span className={net < 0 ? 'alerte-apercu' : ''}>{net >= 0 ? '+' : ''}{fM(net)}</span>],
       ];
     }
+    if (t === 'compteCourant' && m > 0) apercu = [['Trésorerie de ' + c.nom + ' après', fM(c.cash + m)], ['Votre créance après', fM(compteCourant(c) + m)], ['Intérêts annuels', `${fM((compteCourant(c) + m) * tauxCompteCourant(s))} à ${fP(tauxCompteCourant(s), 2)}, taux variable`], ['Votre détention', `${fP(pct(c, JOUEUR), 1)}, inchangée`], ...(m > s.joueur.cash + 1e-9 ? [['Financement', <span className="alerte-apercu">{fM(m - s.joueur.cash)} tirés sur votre marge</span>]] : [])];
+    if (t === 'rembourserCC' && m > 0) { const mm = Math.min(m, compteCourant(c)); apercu = [['Remboursé', fM(mm)], ['Reste dû', fM(compteCourant(c) - mm)], ['Trésorerie de ' + c.nom + ' après', fM(c.cash - mm)]]; }
     if (t === 'payout') apercu = [['Dividende annuel estimé', fM(Math.max(0, resultatNetAnnuel(s, c)) * payout)], ['Dont pour vous (direct)', fM(Math.max(0, resultatNetAnnuel(s, c)) * payout * pct(c, JOUEUR))]];
     if (t === 'fusion' && absorbee) { const b = s.societes[absorbee]; const emis = (b.actions - (b.actionnaires[c.id] || 0)) * b.prix / c.prix; const recus = (b.actionnaires[JOUEUR] || 0) * b.prix / c.prix; apercu = [['Parité', `${nf(3).format(b.prix / c.prix)} ${c.nom} par ${b.nom}`], ['Titres émis', `${fT(emis)} (dont ${fT(recus)} pour vous)`], ['Votre part de ' + c.nom, `${fP(pct(c, JOUEUR), 1)} → ${fP(((c.actionnaires[JOUEUR] || 0) + recus) / (c.actions + emis - (c.actionnaires[b.id] || 0)), 1)}`], ['CA consolidé', fM(c.ca + b.ca)], ['Dette consolidée', fM(c.dette + b.dette)], ['Synergies', b.secteur === c.secteur ? 'même secteur : marge +8 %' : 'aucune (secteurs différents)']]; }
   } catch (e) { apercu = null; }
@@ -157,7 +162,9 @@ export function Fenetre({ s, action, onFermer, onValider }) {
       else if (t === 'payout') n = fixerDividende(s, c.id, payout);
       else if (t === 'fusion') { if (!absorbee) throw new Error('Choisissez la société à absorber.'); n = fusionner(s, c.id, absorbee); }
       else if (t === 'apporter') n = apporterAOffre(s, c.id);
-      else if (t === 'emission') n = emettreActions(s, c.id, { montant: m, mode: modeEm, souscrireJoueur: souscrire, investisseur });
+      else if (t === 'emission') n = emettreActions(s, c.id, { montant: m, mode: modeEm, souscrireJoueur: souscrire, investisseur, souscripteur });
+      else if (t === 'compteCourant') n = apporterCompteCourant(s, c.id, m);
+      else if (t === 'rembourserCC') n = rembourserCompteCourant(s, c.id, m);
       else if (t === 'mandat') n = prendreMandat(s, c.id);
       else if (t === 'obligations') n = emettreObligations(s, c.id, { montant: m, maturite, type: typeObl });
       else if (t === 'rachatObl') n = rembourserObligation(s, c.id, action.obligId);
@@ -168,7 +175,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
   };
 
   const filiales = actives(s).filter(d => d.id !== c.id && ctrl.has(d.id));
-  const avecMontant = ['acheter', 'vendre', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'emission', 'obligations'].includes(t);
+  const avecMontant = ['acheter', 'vendre', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'emission', 'obligations', 'compteCourant', 'rembourserCC'].includes(t);
+  const souscripteurs = [JOUEUR, ...[...ctrl].filter(id => id !== c.id)];
   return (
     <div className="voile" onClick={onFermer}>
       <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
@@ -216,6 +224,7 @@ export function Fenetre({ s, action, onFermer, onValider }) {
               {' '}À l'échéance, la société rembourse sur sa trésorerie puis tire sur la banque ; si cela ne suffit pas, c'est le défaut : les porteurs convertissent le reliquat en actions à la moitié du cours.</div>
           </div>
         )}
+        {t === 'compteCourant' && <div className="aide" style={{ marginTop: 0 }}>Vous prêtez à {c.nom} sans recevoir d'actions : votre part ne change pas, les minoritaires ne sont pas dilués. L'avance rapporte le taux directeur + 2 points, versés chaque trimestre et déductibles pour la société ; elle se rembourse quand vous le décidez, si la trésorerie le permet. Subordonnée, elle ne pèse ni sur la notation ni sur la capacité d'emprunt, mais elle est perdue si la société est liquidée.</div>}
         {t === 'rachatObl' && <div className="aide" style={{ marginTop: 0 }}>Rembourser avant l'échéance coûte une pénalité, mais supprime le coupon et le risque de refinancement.</div>}
         {t === 'mandat' && <div className="aide" style={{ marginTop: 0 }}>Le fixe croît avec la taille de la société, dans la limite de 8 % de son EBIT. Le bonus récompense pour moitié la croissance de l'EBIT sur l'année (100 % de la cible à +6,7 %, 150 % à +10 %) et pour moitié la performance boursière contre le marché (100 % à égalité, 0 à −20 points). Chaque année, de nouvelles options au cours du jour, levées au bout de trois ans en actions nouvelles si le cours a monté. Salaire et bonus sont imposés à {fP(IMPOT_REVENU)}, les gains d'options à {fP(IMPOT_PLUS_VALUE)}. Vous perdez le mandat et vos options non acquises si vous perdez le contrôle. Au plus {MANDATS_MAX} présidences. La société paie tout, vous n'en supportez que votre quote-part : un mandat rapporte d'autant plus que votre participation est faible. À 80 % du capital, vous vous payez surtout vous-même, et le fisc prend sa part.</div>}
         {t === 'demission' && <div className="aide" style={{ marginTop: 0 }}>Vous quittez la présidence : le fixe s'arrête et les options non encore acquises sont annulées.</div>}
@@ -223,9 +232,12 @@ export function Fenetre({ s, action, onFermer, onValider }) {
           <div className="champ"><label>Forme de l'émission</label>
             <select value={modeEm} onChange={e => { setModeEm(e.target.value); setErreur(null); }}>{Object.entries(MODES_EMISSION).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             {modeEm === 'droits' && <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, color: 'var(--encre)' }}><input type="checkbox" checked={souscrire} onChange={e => setSouscrire(e.target.checked)} style={{ width: 'auto' }} />Souscrire votre quote-part (sinon vos droits sont vendus)</label>}
+            {modeEm === 'reservee' && <select value={souscripteur} onChange={e => { setSouscripteur(e.target.value); setErreur(null); }} style={{ marginTop: 8 }} aria-label="Souscripteur">{souscripteurs.map(h => <option key={h} value={h}>{h === JOUEUR ? 'Vous, en direct' : `${s.societes[h].nom} (trésorerie ${fM(s.societes[h].cash)})`}</option>)}</select>}
             {modeEm === 'prive' && <select value={investisseur} onChange={e => { setInvestisseur(e.target.value); setErreur(null); }} style={{ marginTop: 8 }}>{RAIDERS.filter(r => s.raiders[r.id].actif).map(r => <option key={r.id} value={r.id}>{r.nom}</option>)}</select>}
             <div className="aide" style={{ marginTop: 6 }}>{modeEm === 'public'
               ? "Les actions nouvelles sont vendues au marché. Tous les actionnaires sont dilués ; la décote croît avec la taille de l'émission."
+              : modeEm === 'reservee'
+              ? `Vous seul souscrivez, directement ou par une société que vous contrôlez : les actions nouvelles sont émises au cours, sans décote, pour ne pas léser les minoritaires, avec ${fP(FRAIS_RESERVEE)} de frais. Les autres actionnaires sont dilués et votre part augmente : c'est la façon la plus directe de financer une filiale et de renforcer votre contrôle.`
               : modeEm === 'droits'
               ? "Chaque actionnaire peut souscrire au prorata de sa part. Qui renonce vend ses droits : la décote est forte, mais elle ne coûte rien à personne. Vos sociétés actionnaires souscrivent si elles ont la trésorerie ; les concurrents, s'ils jugent le prix intéressant."
               : "L'émission est réservée à un groupe de la cote, qui ne souscrit que s'il juge le prix inférieur à la valeur du titre. Il en ressort avec un bloc qui peut vous disputer le contrôle."}

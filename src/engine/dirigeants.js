@@ -192,6 +192,8 @@ export function fusionner(s0, absorbantId, absorbeeId) {
   a.divRecus = 0;
   a.ca = caTot; a.actifs += b.actifs; a.dette += b.dette; a.cash += b.cash;
   a.obligations = [...(a.obligations || []), ...(b.obligations || [])];
+  // Les comptes courants de l'absorbée deviennent des créances sur l'absorbante
+  for (const [h, m] of Object.entries(b.comptesCourants || {})) a.comptesCourants = { ...(a.comptesCourants || {}), [h]: (a.comptesCourants?.[h] || 0) + m };
   a.rot = a.actifs > 0 ? (a.ca + a.caPipeline) / a.actifs : 0;
   const synergie = a.secteur === b.secteur && !estHolding(a) && !devientOperationnelle;
   if (synergie) a.margeRef = Math.min(a.margeRef * 1.08, SECT_BY_ID[a.secteur].marge * 1.6);

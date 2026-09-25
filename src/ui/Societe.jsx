@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
+import { compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
 import { Spark } from './Graphiques.jsx';
 import { DetailMandat } from './Portefeuille.jsx';
 import { classeVar, fE, fM, fP, fPts, fT, nf, signe } from './format.js';
@@ -59,6 +59,7 @@ export function Societe({ s, id, onAction, onSel }) {
         <div className="ligne"><span>Trésorerie</span><b>{fM(c.cash)}</b></div>
         <div className="ligne"><span>Dette bancaire</span><b>{fM(c.dette)}</b></div>
         {detteObligataire(c) > 0 && <div className="ligne"><span>Dette obligataire</span><b>{fM(detteObligataire(c))}</b></div>}
+        {totalComptesCourants(c) > 0.005 && <div className="ligne"><span>Comptes courants d'associés</span><b>{fM(totalComptesCourants(c))}{compteCourant(c) > 0.005 && compteCourant(c) < totalComptesCourants(c) - 0.005 ? <> (dont vous {fM(compteCourant(c))})</> : ''}</b></div>}
         <div className="ligne"><span>Actif net réévalué</span><b className={classeVar(anr)}>{fM(anr)}</b></div>
         <div className="ligne"><span>Décote sur ANR</span><b>{anr > 0 ? fP(1 - capi(c) / anr) : '—'}</b></div>
         <div className="ligne"><span>LTV (dette / actifs)</span><b className={ltv(s, c) > 0.5 ? 'baisse' : ''}>{fP(Math.min(ltv(s, c), 9))}</b></div>
@@ -83,6 +84,7 @@ export function Societe({ s, id, onAction, onSel }) {
         <div className="ligne"><span>Trésorerie</span><b>{fM(c.cash)}</b></div>
         <div className="ligne"><span>Dette bancaire</span><b>{fM(c.dette)}</b></div>
         {detteObligataire(c) > 0 && <div className="ligne"><span>Dette obligataire</span><b>{fM(detteObligataire(c))}</b></div>}
+        {totalComptesCourants(c) > 0.005 && <div className="ligne"><span>Comptes courants d'associés</span><b>{fM(totalComptesCourants(c))}{compteCourant(c) > 0.005 && compteCourant(c) < totalComptesCourants(c) - 0.005 ? <> (dont vous {fM(compteCourant(c))})</> : ''}</b></div>}
         <div className="ligne"><span>Actifs</span><b>{fM(c.actifs)}</b></div>
         <div className="ligne"><span>Levier dette totale/EBIT</span><b className={levier(c) > 4 ? 'baisse' : ''}>{levier(c) > 50 ? '∞' : nf(1).format(levier(c)) + '×'}</b></div>
         <div className="ligne"><span>Coût de la dette</span><b>{fP(tauxEmprunt(s, c), 1)}</b></div>
@@ -134,11 +136,13 @@ export function Societe({ s, id, onAction, onSel }) {
       </>)}
       {estCtrl && !s.fini && (<>
         <h3 className="tit">Pilotage</h3>
-        <div className="aide" style={{ marginTop: 0, marginBottom: 8 }}>Capacité d'emprunt : {fM(capaciteEmprunt(c, s))}.{!hold && <> Plan de restructuration : {fM(COUT_RESTRUCTURATION * c.ca)}{c.derniereRestructuration !== undefined && s.tour - c.derniereRestructuration < DELAI_RESTRUCTURATION ? `, disponible dans ${DELAI_RESTRUCTURATION - (s.tour - c.derniereRestructuration)} trimestres` : ''}.</>}</div>
+        <div className="aide" style={{ marginTop: 0, marginBottom: 8 }}>Capacité d'emprunt : {fM(capaciteEmprunt(c, s))}.{compteCourant(c) > 0.005 && <> Votre compte courant : {fM(compteCourant(c))} à {fP(tauxCompteCourant(s), 2)}.</>}{!hold && <> Plan de restructuration : {fM(COUT_RESTRUCTURATION * c.ca)}{c.derniereRestructuration !== undefined && s.tour - c.derniereRestructuration < DELAI_RESTRUCTURATION ? `, disponible dans ${DELAI_RESTRUCTURATION - (s.tour - c.derniereRestructuration)} trimestres` : ''}.</>}</div>
         <div className="actions">
           <button onClick={() => onAction({ type: 'emprunter', cible: c.id })}>Emprunter</button>
           <button onClick={() => onAction({ type: 'rembourser', cible: c.id })} disabled={c.dette < 0.05}>Rembourser</button>
           <button onClick={() => onAction({ type: 'dividende', cible: c.id })}>Dividende exceptionnel</button>
+          <button onClick={() => onAction({ type: 'compteCourant', cible: c.id })}>Avance en compte courant</button>
+          {compteCourant(c) > 0.005 && <button onClick={() => onAction({ type: 'rembourserCC', cible: c.id })} disabled={c.cash < 0.05}>Rembourser le compte courant</button>}
           <button onClick={() => onAction({ type: 'rachat', cible: c.id })}>Racheter des actions</button>
           {!hold && <button onClick={() => onAction({ type: 'investir', cible: c.id })}>Investir</button>}
           {!hold && <button onClick={() => onAction({ type: 'ceder', cible: c.id })}>Céder des actifs</button>}

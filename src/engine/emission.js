@@ -15,16 +15,21 @@ export const MODES_EMISSION = {
   public: 'Placement dans le public',
   droits: 'Avec droit préférentiel de souscription',
   prive: 'Placement privé réservé',
+  reservee: 'Réservée à vous ou à l\'une de vos sociétés',
 };
+// Frais : une émission réservée à l'actionnaire de contrôle se passe de syndicat de placement
+export const FRAIS_RESERVEE = 0.01;
+export const fraisEmission = (mode) => mode === 'reservee' ? FRAIS_RESERVEE : FRAIS_EMISSION;
 // Décote du prix d'émission sur le cours, selon la forme et la taille relative de l'émission
 export function decoteEmission(mode, taille) {
   if (mode === 'droits') return clamp(0.15 + 0.2 * taille, 0.15, 0.4);    // décote forte mais neutre : les droits la compensent
   if (mode === 'prive') return clamp(0.08 + 0.3 * taille, 0.08, 0.35);
+  if (mode === 'reservee') return 0;   // au cours : l'actionnaire de contrôle ne s'enrichit pas aux dépens des minoritaires
   return clamp(0.04 + 0.3 * taille, 0.04, 0.3);
 }
 // Montant maximal levable : doubler le nombre d'actions au prix d'émission correspondant
 export const montantMaxEmission = (c, mode) => c.actions * c.prix * (1 - decoteEmission(mode, 1));
-export function apercuEmission(s, id, { montant, mode, souscrireJoueur = true, investisseur = null }, ctl = null) {
+export function apercuEmission(s, id, { montant, mode, souscrireJoueur = true, investisseur = null, souscripteur = JOUEUR }, ctl = null) {
   const c = societe(s, id);
   if (!MODES_EMISSION[mode]) throw new Error('Forme d\'émission inconnue.');
   if (!(montant > 0)) throw new Error('Montant invalide');
@@ -35,11 +40,20 @@ export function apercuEmission(s, id, { montant, mode, souscrireJoueur = true, i
   const repartition = {};      // détenteur -> actions nouvelles souscrites
   const paiements = {};        // détenteur -> espèces versées (> 0) ou produit de cession des droits (< 0)
   const decisions = [];        // [nom, texte] pour l'aperçu
-  const terpNet = (c.actions * c.prix + n * prixEm * (1 - FRAIS_EMISSION)) / (c.actions + n);
+  const frais = fraisEmission(mode);
+  ctl = ctl || repartitionControle(s);
+  const terpNet = (c.actions * c.prix + n * prixEm * (1 - frais)) / (c.actions + n);
   const valeurDroit = Math.max(0, terpNet - prixEm);   // ce que vaut le droit de souscrire une action nouvelle
   const ajouter = (h, q) => { if (q > 1e-12) repartition[h] = (repartition[h] || 0) + q; };
   if (mode === 'public') {
     ajouter('public', n);
+  } else if (mode === 'reservee') {
+    // Vous souscrivez seul, ou par une société que vous contrôlez (autre que l'émettrice)
+    const valide = souscripteur === JOUEUR || (souscripteur !== id && s.societes[souscripteur]?.active && controlees(s, JOUEUR, ctl).has(souscripteur));
+    if (!valide) throw new Error('Choisissez le souscripteur : vous, ou une société que vous contrôlez.');
+    ajouter(souscripteur, n);
+    paiements[souscripteur] = n * prixEm;
+    decisions.push([souscripteur === JOUEUR ? 'Vous' : nomDetenteur(s, souscripteur), `${souscripteur === JOUEUR ? 'souscrivez' : 'souscrit'} ${fmtTitres(n)} pour ${(n * prixEm).toFixed(1)} M€`]);
   } else if (mode === 'prive') {
     if (!investisseur || !estRaider(s, investisseur) || !s.raiders[investisseur].actif) throw new Error('Choisissez le groupe à qui réserver l\'émission.');
     const rd = RAIDER_BY_ID[investisseur];
@@ -72,9 +86,8 @@ export function apercuEmission(s, id, { montant, mode, souscrireJoueur = true, i
       decisions.push([nomDetenteur(s, h), souscrit ? `souscrit ${fmtTitres(part)} pour ${cout.toFixed(1)} M€` : `vend ses droits pour ${(part * valeurDroit).toFixed(1)} M€`]);
     }
   }
-  const brut = n * prixEm, net = brut * (1 - FRAIS_EMISSION);
+  const brut = n * prixEm, net = brut * (1 - frais);
   const terp = (c.actions * c.prix + net) / (c.actions + n);          // prix théorique après émission, frais déduits
-  ctl = ctl || repartitionControle(s);
   const ctrlJ = controlees(s, JOUEUR, ctl);
   const detAvant = detentionEffective(s, id, ctrlJ);
   let detApresT = (c.actionnaires[JOUEUR] || 0) + (repartition[JOUEUR] || 0);
@@ -106,7 +119,8 @@ export function emettreActions(s0, id, params) {
   c.cash += ap.net;
   c.prix = ap.terp;
   c.derniereEmission = s.tour;
-  const qui = params.mode === 'prive' ? ` réservée à ${nomDetenteur(s, params.investisseur)}` : params.mode === 'droits' ? ' avec droit préférentiel' : ' dans le public';
+  const qui = params.mode === 'reservee' ? ` réservée à ${(params.souscripteur ?? JOUEUR) === JOUEUR ? 'vous-même' : nomDetenteur(s, params.souscripteur)}`
+    : params.mode === 'prive' ? ` réservée à ${nomDetenteur(s, params.investisseur)}` : params.mode === 'droits' ? ' avec droit préférentiel' : ' dans le public';
   journal(s, 'filiale', `${c.nom} réalise une augmentation de capital${qui} : ${fmtTitres(ap.n)} nouveaux à ${ap.prixEm.toFixed(2)} € (décote ${Math.round(100 * ap.decote)} %), ${ap.net.toFixed(1)} M€ levés nets${params.mode === 'droits' && params.souscrireJoueur === false && ap.droitsJoueur > 0 ? ` ; vous vendez vos droits pour ${ap.droitsJoueur.toFixed(1)} M€` : ''}.`, JOUEUR);
   return s;
 }

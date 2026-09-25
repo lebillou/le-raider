@@ -15,7 +15,14 @@ test('40 parties jouées au hasard respectent les invariants comptables', () => 
           if (x < 0.25) s = m.acheter(s, acteur, cible.id, Math.max(0.5, f * (0.05 + 0.4 * rnd())));
           else if (x < 0.35) { const pos = m.actives(s).filter(c => c.actionnaires[acteur] > 0); if (pos.length) { const c = pick(pos); s = m.vendre(s, acteur, c.id, c.actionnaires[acteur] * rnd()); } }
           else if (x < 0.5) s = m.lancerOPA(s, pick(acteurs), cible.id, rnd() * 0.6, rnd() < 0.6 ? 1 : rnd());
-          else if (x < 0.55) { const type = rnd() < 0.5 ? 'holding' : 'operationnelle'; s = m.creerSociete(s, pick(acteurs), { type, secteur: pick(m.SECTEURS).id, nom: `Test ${g}-${t}-${k}`, capital: (type === 'holding' ? 2 : 5) + rnd() * f * 0.5 }); }
+          else if (x < 0.55) {
+            // Création, avec parfois des titres ou une branche d'activité apportés en nature
+            const type = rnd() < 0.5 ? 'holding' : 'operationnelle', fondateur = pick(acteurs), titres = {};
+            const pos = m.actives(s).filter(c => c.actionnaires[fondateur] > 0);
+            if (pos.length && rnd() < 0.4) { const c = pick(pos); titres[c.id] = c.actionnaires[fondateur] * (rnd() < 0.3 ? 1 : rnd()); }
+            const branche = fondateur !== J && rnd() < 0.3 ? rnd() * 0.55 : 0;
+            s = m.creerSociete(s, fondateur, { type, secteur: pick(m.SECTEURS).id, nom: `Test ${g}-${t}-${k}`, capital: (type === 'holding' ? 2 : 5) * rnd() + rnd() * f * 0.5, titres, branche });
+          }
           else if (ctrl.size) {
             const fid = pick([...ctrl]), c = s.societes[fid], y = rnd();
             if (y < 0.15) s = m.emprunter(s, fid, m.capaciteEmprunt(c, s) * rnd());
@@ -27,7 +34,8 @@ test('40 parties jouées au hasard respectent les invariants comptables', () => 
             else if (y < 0.64) s = rnd() < 0.5 ? m.restructurer(s, fid) : m.fixerDividende(s, fid, rnd() * 0.8);
             else if (y < 0.74) { if (rnd() < 0.75) { const type = pick(['classique', 'hy', 'convertible']); s = m.emettreObligations(s, fid, { montant: 1 + rnd() * m.capaciteObligataire(s, c, type), maturite: pick(m.MATURITES), type }); } else if (c.obligations?.length) s = m.rembourserObligation(s, fid, pick(c.obligations).id); }
             else if (y < 0.82) { if (rnd() < 0.8) s = m.prendreMandat(s, fid); else { const mm = m.mandatsDe(s, J); if (mm.length) s = m.quitterMandat(s, mm[0].id); } }
-            else if (y < 0.92) { const mode = pick(['public', 'droits', 'prive']); s = m.emettreActions(s, fid, { montant: 1 + rnd() * m.montantMaxEmission(c, mode) * 0.9, mode, souscrireJoueur: rnd() < 0.5, investisseur: pick(m.RAIDERS).id }); }
+            else if (y < 0.92) { const mode = pick(['public', 'droits', 'prive', 'reservee']); s = m.emettreActions(s, fid, { montant: 1 + rnd() * m.montantMaxEmission(c, mode) * (mode === 'reservee' ? 0.2 : 0.9), mode, souscrireJoueur: rnd() < 0.5, investisseur: pick(m.RAIDERS).id, souscripteur: pick(acteurs) }); }
+            else if (y < 0.96) s = rnd() < 0.6 ? m.apporterCompteCourant(s, fid, 0.5 + rnd() * f * 0.2) : m.rembourserCompteCourant(s, fid, rnd() * 5);
             else { const cand = [...ctrl].filter(id => id !== fid); if (cand.length) s = m.fusionner(s, fid, pick(cand)); }
           }
           executes++;

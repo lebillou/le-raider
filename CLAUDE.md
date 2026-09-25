@@ -31,7 +31,7 @@ src/engine/     moteur du jeu, JavaScript pur, sans dépendance ni accès au DOM
   controle.js   règle de contrôle, groupes de vote, cascade, autocontrôle
   valorisation.js  prix cible (valeur fondamentale), PER, résultat
   univers.js    nouvellePartie(graine, { nbTours })
-  creation.js   création de sociétés et holdings ; journal()
+  creation.js   création de sociétés et holdings, apports en nature (titres, branche d'activité) ; journal()
   transactions.js  débit/crédit, antitrust, aperçus d'achat et de vente
   marche.js     acheter, vendre, lancerOPA (OPA, OPE, offres mixtes), apporter à une offre
   pilotage.js   emprunter, rembourser, dividendes, rachat d'actions, investir, céder, restructurer, fusionner
@@ -39,6 +39,7 @@ src/engine/     moteur du jeu, JavaScript pur, sans dépendance ni accès au DOM
   obligations.js  classiques, haut rendement, convertibles ; échéances, défaut
   dirigeants.js mandats de PDG : fixe, bonus, stock-options ; restructuration, fusion
   strategie.js  croissance visée et budget de R&D ou de marketing ; EBIT publié et normatif
+  comptes.js    comptes courants d'associé : avances du joueur à ses sociétés
   trimestre.js  finTrimestre() : conjoncture, événements, exploitation, échéances, faillites, cours, mandats
   courtage.js   intérêts de marge et appels de marge des acteurs
   ia.js         comportement des trois raiders
@@ -74,7 +75,9 @@ Pour chaque société active : la somme des détentions égale le nombre d'actio
 - **Croissance** : investir ou créer une société ajoute un CA « en construction » qui entre en service en deux ans environ ; 1 € investi vaut environ 1,15 € à maturité quel que soit le secteur (`RENDEMENT_INVEST`), et le marché en valorise 75 % tout de suite (`ANTICIPATION`).
 - **Stratégie** (`strategie.js`) : qui contrôle une société d'exploitation fixe sa croissance visée (−4 à +8 points par an au-delà du secteur) et son budget de R&D (énergie, industrie, technologie, santé) ou de marketing (les autres), de 0 au budget habituel du secteur + 8 points de CA. Le budget habituel est compris dans la marge de référence : seul l'écart est une charge. Croître coûte de la marge, rentable à petite dose, ruineux au-delà (`RENDEMENT_CROISSANCE`, `SATURATION_CROISSANCE`) ; l'effort relève la marge cible avec retard (R&D ≈ 3 ans, marketing ≈ 1 an), selon l'efficacité du secteur et en saturant vers le plafond de 1,6 × la marge sectorielle ; couper érode la marge cible. `ebitAnnuel` est l'EBIT publié (après ces charges : levier, notation, capacité d'emprunt, bonus du PDG) ; `prixCible` capitalise `ebitNormatif` (avant ces charges). Lemarchand coupe la R&D et la croissance de ses filiales ; Vauclair investit là où l'efficacité atteint 1,2.
 - **Holdings** : valorisées à leur actif net moins 10 % ; empruntent jusqu'à 50 % de la valeur de leurs participations ; covenant bancaire à 75 % de LTV.
-- **Augmentations de capital** : au plus tous les 4 trimestres, jamais plus du double des actions, 3 % de frais. Droit préférentiel neutre en valeur ; placement privé soumis à l'estimation du raider.
+- **Création et apports en nature** (`creation.js`) : le fondateur (vous ou une société contrôlée) apporte du numéraire, des titres cotés qu'il détient (au cours, hors marché) et, s'il s'agit d'une société d'exploitation, jusqu'à 50 % de son activité (CA, CA en construction, actifs, à la valeur d'entreprise ; la dette reste chez la fondatrice). Capital minimum apports compris ; frais de 0,5 % sur la valeur en nature, couverts par le numéraire. Actions à 10 € de nominal sur le capital total. Le courtier refuse un apport de titres qui porterait la marge au-delà de 50 % du portefeuille (décote de holding).
+- **Augmentations de capital** : au plus tous les 4 trimestres, jamais plus du double des actions, 3 % de frais. Droit préférentiel neutre en valeur ; placement privé soumis à l'estimation du raider ; émission réservée à vous ou à une société que vous contrôlez, au cours sans décote, 1 % de frais (`FRAIS_RESERVEE`).
+- **Comptes courants** (`comptes.js`) : le joueur avance de l'argent à une société qu'il contrôle, sans dilution, au taux directeur + 2 points (charge déductible, versée chaque trimestre) ; remboursable quand il la contrôle et qu'elle a la trésorerie. Hors levier et notation, déduit de la valeur des actions (`prixCible`), compté dans `fortune` ; transmis à l'absorbante en cas de fusion, perdu en cas de liquidation.
 - **Obligations** : taux fixe, remboursées à l'échéance (5, 7 ou 10 ans), sans covenant. Classique jusqu'à 4× l'EBIT, haut rendement jusqu'à 6×, convertible jusqu'à 5× avec conversion à +30 %. À l'échéance : trésorerie, puis banque ; sinon défaut, les porteurs convertissent le reliquat en actions à la moitié du cours.
 - **Dirigeants** : au plus 5 présidences. Fixe = 0,1 + 0,03 × √CA (M€/an), plafonné à 8 % de l'EBIT ; bonus 0 à 150 % du fixe (croissance de l'EBIT et bourse contre l'indice) ; options annuelles levables à 3 ans en règlement net. Révocation automatique si le contrôle change de mains.
 - **Raiders** (`ia.js`) : Vauclair (valeur, sans dette), Lemarchand (OPA à crédit, filiales endettées et vidées), Meridian (se glisse dans les cibles du joueur). Ils agissent à la clôture, après les ordres du joueur, avec au plus un achat, une vente et une OPA par trimestre. Les ordres de l'IA passent par `appliquer()`, qui avale les refus : pour voir les erreurs, `globalThis.DEBUG_RAIDER = true`.

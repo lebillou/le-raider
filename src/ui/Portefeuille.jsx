@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ACQUISITION_OPTIONS, BONUS_CIBLE, JOUEUR, MANDATS_MAX, actives, capi, controlees, detentionEffective, fixeAnnuel, fortune, libelleTour, mandatsDe, titre, valeurPortefeuille } from '../engine/index.js';
+import { creancesComptesCourants, ACQUISITION_OPTIONS, BONUS_CIBLE, JOUEUR, MANDATS_MAX, actives, capi, controlees, detentionEffective, fixeAnnuel, fortune, libelleTour, mandatsDe, titre, valeurPortefeuille } from '../engine/index.js';
 import { CourbeFortune } from './Graphiques.jsx';
 import { fE, fM, fMp, fP, fT, signe } from './format.js';
 
@@ -36,6 +36,7 @@ export function Portefeuille({ s, onSel, onCreer }) {
         <div className="ligne"><span>Trésorerie</span><b>{fM(j.cash)}</b></div>
         <div className="ligne"><span>Dette sur marge</span><b className={j.marge > 0 ? 'baisse' : ''}>{fM(j.marge)} à {fP(s.taux + 0.02, 1)}</b></div>
         <div className="ligne"><span>Portefeuille direct</span><b>{fM(valeurPortefeuille(s))}</b></div>
+        {creancesComptesCourants(s) > 0.005 && <div className="ligne"><span>Comptes courants</span><b>{fM(creancesComptesCourants(s))}</b></div>}
         <div className="ligne"><span>Sociétés contrôlées</span><b>{ctrl.size}</b></div>
         <div className="ligne"><span>Mandats de PDG</span><b>{mandatsDe(s, JOUEUR).length} / {MANDATS_MAX}</b></div>
         <div className="ligne"><span>Rémunérations nettes perçues</span><b>{fMp(s.joueur.remTotale || 0)}</b></div>

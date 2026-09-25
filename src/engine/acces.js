@@ -19,7 +19,12 @@ export function valeurParticipations(s, holder) {
   return v;
 }
 export const valeurPortefeuille = (s) => valeurParticipations(s, JOUEUR);
-export const fortune = (s, h = JOUEUR) => compte(s, h).cash - compte(s, h).marge + valeurParticipations(s, h);
+// Fortune nette : trésorerie, titres au cours et avances en compte courant, moins la dette sur marge
+export function fortune(s, h = JOUEUR) {
+  let cc = 0;
+  for (const c of actives(s)) cc += c.comptesCourants?.[h] || 0;
+  return compte(s, h).cash - compte(s, h).marge + valeurParticipations(s, h) + cc;
+}
 
 // Détenteurs d'une société, hors public et noyau, qui sont des sociétés
 export const detenteursSocietes = (s, c) => Object.keys(c.actionnaires).filter(h => h !== 'public' && h !== 'noyau' && h !== JOUEUR && !estRaider(s, h));
