@@ -20,6 +20,7 @@ export function Bilan({ s, onNouvelle, onProlonger, onSel }) {
     ['Emprunts de filiales', (a) => compte(a.id, /emprunte/)],
     ['Dividendes exceptionnels', (a) => compte(a.id, /dividende exceptionnel/)],
     ['Restructurations', (a) => compte(a.id, /restructuration/)],
+    ['Révisions de stratégie', (a) => compte(a.id, /revoit sa stratégie/)],
     ['Augmentations de capital', (a) => compte(a.id, /augmentation de capital/)],
     ['Émissions obligataires', (a) => compte(a.id, /émet .* d'obligations/)],
     ['Défauts obligataires', (a) => compte(a.id, /^Défaut de/)],

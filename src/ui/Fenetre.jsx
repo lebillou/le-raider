@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { ACQUISITION_OPTIONS, ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_PAPIER, DELAI_EMISSION, DELAI_RESTRUCTURATION, IMPOT_PLUS_VALUE, IMPOT_REVENU, JOUEUR, MANDATS_MAX, MARGE_MAX, MATURITES, MODES_EMISSION, PENALITE_ANTICIPE, PRIME_NOYAU, RAIDERS, SECT_BY_ID, TYPES_OBLIGATIONS, acheter, actives, apercuAchat, apercuEmission, apercuMandat, apercuOPA, apercuObligations, apercuVente, apporterAOffre, caParEuro, capaciteEmprunt, capaciteObligataire, cederActifs, controlees, dividendeExceptionnel, emettreActions, emettreObligations, emprunter, estHolding, fixeAnnuel, fixerDividende, fusionner, investir, lancerOPA, levier, libelleTour, ltv, montantMaxEmission, multiple, natureOffre, nomDetenteur, nomGroupe, notation, pct, prendreMandat, quitterMandat, racheterActions, rembourser, rembourserObligation, restructurer, resultatNetAnnuel, tauxApport, tauxEmprunt, valeurPortefeuille, vendre } from '../engine/index.js';
-import { fE, fM, fMp, fP, fT, nf } from './format.js';
+import { CROISSANCE_MAX, CROISSANCE_MIN, IMPOT, LIBELLE_EFFORT, PLAFOND_MARGE, apercuStrategie, croissanceDe, definirStrategie, effortDe, effortMax, parametresEffort, ACQUISITION_OPTIONS, ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_PAPIER, DELAI_EMISSION, DELAI_RESTRUCTURATION, IMPOT_PLUS_VALUE, IMPOT_REVENU, JOUEUR, MANDATS_MAX, MARGE_MAX, MATURITES, MODES_EMISSION, PENALITE_ANTICIPE, PRIME_NOYAU, RAIDERS, SECT_BY_ID, TYPES_OBLIGATIONS, acheter, actives, apercuAchat, apercuEmission, apercuMandat, apercuOPA, apercuObligations, apercuVente, apporterAOffre, caParEuro, capaciteEmprunt, capaciteObligataire, cederActifs, controlees, dividendeExceptionnel, emettreActions, emettreObligations, emprunter, estHolding, fixeAnnuel, fixerDividende, fusionner, investir, lancerOPA, levier, libelleTour, ltv, montantMaxEmission, multiple, natureOffre, nomDetenteur, nomGroupe, notation, pct, prendreMandat, quitterMandat, racheterActions, rembourser, rembourserObligation, restructurer, resultatNetAnnuel, tauxApport, tauxEmprunt, valeurPortefeuille, vendre } from '../engine/index.js';
+import { fE, fM, fMp, fP, fPts, fT, nf } from './format.js';
 
 export const LIBELLES = {
   acheter: 'Acheter des titres', vendre: 'Vendre des titres', opa: 'Lancer une offre',
   emprunter: 'Emprunter', rembourser: 'Rembourser la dette', dividende: 'Dividende exceptionnel',
   rachat: 'Racheter des actions', investir: 'Investir', ceder: 'Céder des actifs',
-  restructurer: 'Plan de restructuration', payout: 'Politique de dividende', fusion: 'Absorber une filiale', apporter: "Apporter à l'offre", emission: 'Augmentation de capital', mandat: 'Vous faire élire PDG', obligations: 'Émettre des obligations', rachatObl: 'Rembourser par anticipation', demission: 'Démissionner de la présidence',
+  restructurer: 'Plan de restructuration', payout: 'Politique de dividende', fusion: 'Absorber une filiale', apporter: "Apporter à l'offre", emission: 'Augmentation de capital', mandat: 'Vous faire élire PDG', strategie: 'Croissance, R&D et marketing', obligations: 'Émettre des obligations', rachatObl: 'Rembourser par anticipation', demission: 'Démissionner de la présidence',
 };
 
 export function Fenetre({ s, action, onFermer, onValider }) {
@@ -26,6 +26,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
   const [investisseur, setInvestisseur] = useState(RAIDERS.find(r => s.raiders[r.id].actif)?.id || '');
   const [typeObl, setTypeObl] = useState('classique');
   const [maturite, setMaturite] = useState(7);
+  const [croissance, setCroissance] = useState(() => croissanceDe(c));
+  const [effort, setEffort] = useState(() => effortDe(c));
   const [erreur, setErreur] = useState(null);
   const m = parseFloat(String(montant).replace(',', '.'));
   const t = action.type;
@@ -119,6 +121,22 @@ export function Fenetre({ s, action, onFermer, onValider }) {
     if (t === 'investir' && m > 0) { const g = m * caParEuro(c.secteur); apercu = [['Actifs après', fM(c.actifs + m)], ['CA supplémentaire', `${fM(g)} d'ici deux ans`], ['EBIT supplémentaire à maturité', fM(g * c.margeRef)], ['Valeur de marché immédiate', `≈ ${fM(ANTICIPATION * g * c.margeRef * multiple(s, c))} pour ${fM(m)} investis`]]; }
     if (t === 'ceder' && m > 0) { const mm = Math.min(m, c.actifs * 0.6); apercu = [['Produit (décote 15 %)', fM(mm * 0.85)], ['CA après', fM(Math.max(c.ca - mm * c.rot, c.ca * 0.3))]]; }
     if (t === 'restructurer') apercu = [['Coût', fM(COUT_RESTRUCTURATION * c.ca)], ['Marge cible', `${fP(c.margeRef, 1)} → ${fP(Math.min(c.margeRef * 1.15, SECT_BY_ID[c.secteur].marge * 1.6), 1)}`], ['Prochain plan', `dans ${DELAI_RESTRUCTURATION} trimestres`]];
+    if (t === 'strategie') {
+      const a = apercuStrategie(s, c.id, { croissance, effort });
+      const valeur = (p) => p.ca * p.margeCible * multiple(s, c);   // effets encore en gestation compris
+      const net = valeur(a.nouvelle) - valeur(a.actuelle) - (a.nouvelle.charges - a.actuelle.charges) * (1 - IMPOT);
+      const fleche = (x, y, f) => x === y || Math.abs(x - y) < 1e-9 ? f(y) : `${f(x)} → ${f(y)}`;
+      apercu = [
+        ['Charges stratégiques', <>{fleche(a.chargeAvant, a.chargeApres, fM)} par an{a.chargeApres < -1e-6 ? ' (économie)' : ''}</>],
+        ['Marge publiée', `${fleche(a.margePublieeAvant, a.margePublieeApres, (v) => fP(v, 1))} (exploitation ${fP(c.marge, 1)})`],
+        ['EBIT publié', fleche(a.ebitPublieAvant, a.ebitPublieApres, fM)],
+        [`Dans ${a.ans} ans, CA`, `${fM(a.actuelle.ca)} → ${fM(a.nouvelle.ca)}`],
+        [`Dans ${a.ans} ans, marge cible`, `${fP(a.actuelle.margeCible, 1)} → ${fP(a.nouvelle.margeCible, 1)}`],
+        [`Dans ${a.ans} ans, EBIT publié`, `${fM(a.actuelle.ebitPublie)} → ${fM(a.nouvelle.ebitPublie)}`],
+        [`Charges cumulées sur ${a.ans} ans`, `${fM(a.actuelle.charges)} → ${fM(a.nouvelle.charges)}`],
+        [`Bilan à ${a.ans} ans pour l'actionnaire`, <span className={net < 0 ? 'alerte-apercu' : ''}>{net >= 0 ? '+' : ''}{fM(net)}</span>],
+      ];
+    }
     if (t === 'payout') apercu = [['Dividende annuel estimé', fM(Math.max(0, resultatNetAnnuel(s, c)) * payout)], ['Dont pour vous (direct)', fM(Math.max(0, resultatNetAnnuel(s, c)) * payout * pct(c, JOUEUR))]];
     if (t === 'fusion' && absorbee) { const b = s.societes[absorbee]; const emis = (b.actions - (b.actionnaires[c.id] || 0)) * b.prix / c.prix; const recus = (b.actionnaires[JOUEUR] || 0) * b.prix / c.prix; apercu = [['Parité', `${nf(3).format(b.prix / c.prix)} ${c.nom} par ${b.nom}`], ['Titres émis', `${fT(emis)} (dont ${fT(recus)} pour vous)`], ['Votre part de ' + c.nom, `${fP(pct(c, JOUEUR), 1)} → ${fP(((c.actionnaires[JOUEUR] || 0) + recus) / (c.actions + emis - (c.actionnaires[b.id] || 0)), 1)}`], ['CA consolidé', fM(c.ca + b.ca)], ['Dette consolidée', fM(c.dette + b.dette)], ['Synergies', b.secteur === c.secteur ? 'même secteur : marge +8 %' : 'aucune (secteurs différents)']]; }
   } catch (e) { apercu = null; }
@@ -144,6 +162,7 @@ export function Fenetre({ s, action, onFermer, onValider }) {
       else if (t === 'obligations') n = emettreObligations(s, c.id, { montant: m, maturite, type: typeObl });
       else if (t === 'rachatObl') n = rembourserObligation(s, c.id, action.obligId);
       else if (t === 'demission') n = quitterMandat(s, c.id);
+      else if (t === 'strategie') n = definirStrategie(s, c.id, { croissance, effort });
       onValider(n);
     } catch (e) { setErreur(e.message); }
   };
@@ -219,6 +238,23 @@ export function Fenetre({ s, action, onFermer, onValider }) {
             <input type="range" min="0" max="80" step="5" value={Math.round(payout * 100)} onChange={e => setPayout(Number(e.target.value) / 100)} />
           </div>
         )}
+        {t === 'strategie' && parametresEffort(c) && (() => {
+          const pe = parametresEffort(c);
+          const lib = LIBELLE_EFFORT[pe.nature];
+          return (
+            <div className="champ">
+              <label>Croissance visée : {croissance ? `${fPts(croissance)} par an au-delà du secteur` : 'rythme du secteur'}</label>
+              <input type="range" min={Math.round(1000 * CROISSANCE_MIN)} max={Math.round(1000 * CROISSANCE_MAX)} step="5" value={Math.round(croissance * 1000)} onChange={e => { setCroissance(Number(e.target.value) / 1000); setErreur(null); }} aria-label="Croissance visée" />
+              <label style={{ marginTop: 8 }}>Budget de {lib} : {fP(effort, 1)} du CA (habituel dans le secteur : {fP(pe.norme, 1)})</label>
+              <input type="range" min="0" max={Math.round(1000 * effortMax(c))} step="5" value={Math.round(effort * 1000)} onChange={e => { setEffort(Number(e.target.value) / 1000); setErreur(null); }} aria-label={`Budget de ${lib}`} />
+              <div className="raccourcis"><button onClick={() => { setCroissance(0); setEffort(pe.norme); setErreur(null); }}>Gestion habituelle</button></div>
+              <div className="aide" style={{ marginTop: 6 }}>Gagner des parts de marché se paie en marge (prix, force de vente) : rentable à petite dose, ruineux au-delà de quelques points, et d'autant moins efficace que la société est grande. Y renoncer libère de la marge, mais rapporte moins que la croissance sacrifiée ne vaut.
+                {' '}Chaque point de CA consacré {pe.nature === 'rd' ? 'à la R&D' : 'au marketing'} au-delà de l'habitude relève la marge cible {pe.nature === 'rd' ? 'en trois ans environ' : "en un an environ"}, avec une efficacité {pe.efficacite >= 1.2 ? 'élevée' : pe.efficacite >= 0.9 ? 'moyenne' : 'faible'} dans ce secteur et décroissante à l'approche du plafond ({fP(SECT_BY_ID[c.secteur].marge * PLAFOND_MARGE, 1)}). Couper le budget gonfle le résultat publié, le bonus du PDG et la capacité d'emprunt, mais érode la marge cible.
+                {' '}Le marché regarde au travers : il valorise l'exploitation avant ces charges et n'en retient que les effets.
+                {' '}Le bilan pour l'actionnaire compare les deux politiques : écart de valeur d'exploitation dans cinq ans (marge cible, multiple du jour), moins l'écart de charges cumulées après impôt.</div>
+            </div>
+          );
+        })()}
         {t === 'fusion' && (
           <div className="champ"><label>Société à absorber (parmi celles que vous contrôlez)</label>
             <select value={absorbee} onChange={e => { setAbsorbee(e.target.value); setErreur(null); }}><option value="">—</option>{filiales.map(f => <option key={f.id} value={f.id}>{f.nom} ({c.nom} {fP(pct(f, c.id), 1)}, vous {fP(pct(f, JOUEUR), 1)})</option>)}</select>

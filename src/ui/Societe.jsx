@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
+import { ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
 import { Spark } from './Graphiques.jsx';
 import { DetailMandat } from './Portefeuille.jsx';
-import { classeVar, fE, fM, fP, fT, nf, signe } from './format.js';
+import { classeVar, fE, fM, fP, fPts, fT, nf, signe } from './format.js';
 
 export function Actionnaires({ s, c, ctrl }) {
   const entrees = Object.entries(c.actionnaires).sort((a, b) => b[1] - a[1]);
@@ -46,6 +46,7 @@ export function Societe({ s, id, onAction, onSel }) {
   const vPart = valeurParticipations(s, c.id);
   const anr = vPart + c.cash - c.dette;
   const charge = c.caPipeline > 0.01 ? c.ca / (c.ca + c.caPipeline) : 1;
+  const pe = parametresEffort(c), dg = croissanceDe(c), latente = c.margeLatente || 0;
   return (
     <div>
       <h2 className="rs">{c.nom}{estCtrl && <span className="ctrl" style={{ fontSize: 12, verticalAlign: 'middle', marginLeft: 8 }}>sous votre contrôle</span>}{c.creePar && <span className="cree">créée en {libelleTour(c.creeAu)}</span>}</h2>
@@ -71,8 +72,11 @@ export function Societe({ s, id, onAction, onSel }) {
         <div className="ligne"><span>Actions</span><b>{fT(c.actions)}</b></div>
         <div className="ligne"><span>Chiffre d'affaires</span><b>{fM(c.ca)}</b></div>
         {c.caPipeline > 0.01 && <div className="ligne"><span>CA en construction</span><b>{fM(c.caPipeline)} ({fP(charge)} en service)</b></div>}
-        <div className="ligne"><span>Marge d'exploitation</span><b>{fP(c.marge, 1)}</b></div>
-        <div className="ligne"><span>EBIT annuel</span><b className={classeVar(ebit)}>{fM(ebit)}</b></div>
+        <div className="ligne"><span>Marge d'exploitation</span><b>{fP(c.marge, 1)}{Math.abs(chargeStrategique(c)) > 1e-6 && <> · publiée {fP(c.marge - chargeStrategique(c), 1)}</>}</b></div>
+        <div className="ligne"><span>Marge cible</span><b>{fP(c.margeRef, 1)}{Math.abs(latente) > 0.0005 && <> ({fPts(latente)} en gestation)</>}</b></div>
+        <div className="ligne"><span>Croissance visée</span><b>{dg ? `${fPts(dg)} par an sur le secteur` : 'rythme du secteur'}</b></div>
+        <div className="ligne"><span>Budget de {LIBELLE_EFFORT[pe.nature]}</span><b>{fP(effortDe(c), 1)} du CA (norme {fP(pe.norme, 1)})</b></div>
+        <div className="ligne"><span>EBIT annuel publié</span><b className={classeVar(ebit)}>{fM(ebit)}</b></div>
         <div className="ligne"><span>Résultat net (rythme)</span><b className={classeVar(rn)}>{fM(rn)}</b></div>
         <div className="ligne"><span>PER</span><b>{p ? nf(1).format(p) : '—'}</b></div>
         <div className="ligne"><span>Rendement</span><b>{fP(rendement, 1)}</b></div>
@@ -139,6 +143,7 @@ export function Societe({ s, id, onAction, onSel }) {
           {!hold && <button onClick={() => onAction({ type: 'investir', cible: c.id })}>Investir</button>}
           {!hold && <button onClick={() => onAction({ type: 'ceder', cible: c.id })}>Céder des actifs</button>}
           {!hold && <button onClick={() => onAction({ type: 'restructurer', cible: c.id })}>Restructurer</button>}
+          {!hold && <button onClick={() => onAction({ type: 'strategie', cible: c.id })}>Croissance et {LIBELLE_EFFORT[pe.nature]}</button>}
           <button onClick={() => onAction({ type: 'payout', cible: c.id })}>Politique de dividende</button>
           <button onClick={() => onAction({ type: 'emission', cible: c.id })} disabled={c.derniereEmission !== undefined && s.tour - c.derniereEmission < DELAI_EMISSION}>Augmentation de capital</button>
           <button onClick={() => onAction({ type: 'obligations', cible: c.id })} disabled={c.derniereObligation === s.tour}>Émettre des obligations</button>

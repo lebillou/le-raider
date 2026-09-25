@@ -183,6 +183,10 @@ export function fusionner(s0, absorbantId, absorbeeId) {
   if (pTot > 0) {
     a.marge = caTot > 0 ? (a.ca * a.marge + b.ca * b.marge) / caTot : (devientOperationnelle ? b.marge : a.marge);
     a.margeRef = (poids(a) * a.margeRef + poids(b) * b.margeRef) / pTot;
+    // Les effets de R&D ou de marketing encore en gestation se consolident comme la marge cible ;
+    // la stratégie de l'absorbante s'applique à l'ensemble
+    const latente = (poids(a) * (a.margeLatente || 0) + poids(b) * (b.margeLatente || 0)) / pTot;
+    if (latente) a.margeLatente = latente; else delete a.margeLatente;
   }
   a.caPipeline = (a.caPipeline || 0) + (b.caPipeline || 0);
   a.divRecus = 0;

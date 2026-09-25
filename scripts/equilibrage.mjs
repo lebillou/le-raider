@@ -38,6 +38,12 @@ const batisseur = (s, t) => {
   if (c?.active && c.cash > 0.08 * c.ca + 0.5) { try { s = m.investir(s, 'F1', c.cash - 0.08 * c.ca); } catch (e) { /* refus */ } }
   return s;
 };
+// Même bâtisseur, qui pousse aussi la croissance et la R&D de sa société (+1 point, budget habituel + 3 points)
+const batisseurRD = (s, t) => {
+  s = batisseur(s, t);
+  if (t === 1 && s.societes.F1?.active) s = m.definirStrategie(s, 'F1', { croissance: 0.01, effort: m.parametresEffort(s.societes.F1).norme + 0.03 });
+  return s;
+};
 // Raider : OPA au contrôle minimal, filiales endettées et vidées par dividendes exceptionnels ; option haut rendement
 const raider = (avecHY) => (s) => {
   let ctl = m.repartitionControle(s);
@@ -60,7 +66,7 @@ const raider = (avecHY) => (s) => {
   return s;
 };
 
-const strategies = [['Indice', indice], ['Value (PER)', value], ['Bâtisseur', batisseur], ['Raider', raider(false)], ['Raider + haut rendement', raider(true)]];
+const strategies = [['Indice', indice], ['Value (PER)', value], ['Bâtisseur', batisseur], ['Bâtisseur + R&D', batisseurRD], ['Raider', raider(false)], ['Raider + haut rendement', raider(true)]];
 console.log(`Équilibre sur ${GRAINES} graines, ${TOURS / 4} ans, 25 M€ au départ. Fortune finale en M€ : min / q1 / médiane / q3 / max\n`);
 console.log('| Acteur | min | q1 | médiane | q3 | max | ruines |');
 console.log('|---|---|---|---|---|---|---|');

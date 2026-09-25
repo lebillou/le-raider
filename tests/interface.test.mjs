@@ -51,8 +51,11 @@ test('écrans principaux', () => {
 test('toutes les fenêtres d\'ordre', () => {
   const { s, A } = etatRiche();
   const cible = m.controlees(s).has(A) ? A : 'F1';
-  for (const type of ['acheter', 'vendre', 'opa', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'restructurer', 'payout', 'fusion', 'emission', 'obligations', 'mandat'])
+  for (const type of ['acheter', 'vendre', 'opa', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'restructurer', 'payout', 'fusion', 'emission', 'obligations', 'mandat', 'strategie'])
     contient(rendre(h(ui.Fenetre, { s, action: { type, cible }, onFermer() {}, onValider() {} })), 'Confirmer', 'Annuler');
+  // F2 : la société de technologie créée, contrôlée d'emblée
+  contient(rendre(h(ui.Fenetre, { s, action: { type: 'strategie', cible: 'F2' }, onFermer() {}, onValider() {} })), 'Croissance visée', 'Budget de R&amp;D', 'Bilan pour l', 'Gestion habituelle');
+  contient(rendre(h(ui.App, { initial: s, selectionInitiale: 'F2' })), 'Marge cible', 'Croissance visée', 'Croissance et ');
   contient(rendre(h(ui.Creation, { s, onFermer() {}, onValider() {} })), 'Créer une société', 'Raison sociale');
   contient(rendre(h(ui.NouvellePartie, { onFermer() {}, onCreer() {} })), 'Durée de la partie');
 });

@@ -11,6 +11,7 @@ import { jouerRaiders } from './ia.js';
 import { DECOTE_BLOC } from './marche.js';
 import { traiterEcheances } from './obligations.js';
 import { SECTEURS, SECT_BY_ID, estHolding } from './secteurs.js';
+import { croissanceSecteur, evolutionStrategique } from './strategie.js';
 import { cloner, crediter } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
@@ -58,10 +59,10 @@ export function finTrimestre(s0) {
   for (const c of actives(s)) {
     const sec = SECT_BY_ID[c.secteur];
     const conj = clamp(sec.beta * s.conj + s.conjSecteurs[c.secteur], -1.2, 1.2);
-    // La croissance sectorielle s'érode avec la taille : un géant finit par croître comme l'économie
-    const gSec = 0.02 + (sec.g - 0.02) * Math.exp(-c.ca / 8000);
-    const g = gSec + 0.05 * conj + 0.015 * gauss(r);
+    const g = croissanceSecteur(c) + 0.05 * conj + 0.015 * gauss(r);
     c.ca *= 1 + g / 4;
+    // Stratégie : parts de marché gagnées ou cédées, effets de la R&D ou du marketing sur la marge cible
+    evolutionStrategique(c);
     // Montée en charge des investissements et des créations
     if (c.caPipeline > 0.01) { const d = c.caPipeline * MONTEE_EN_CHARGE; c.ca += d; c.caPipeline -= d; c.caPipeline *= 1 + g / 4; }
     else c.caPipeline = 0;

@@ -2,7 +2,7 @@
 import { capi, valeurParticipations } from './acces.js';
 import { IMPOT, clamp } from './config.js';
 import { fixeAnnuel } from './dirigeants.js';
-import { couponsAnnuels, detteTotale, ebitAnnuel, tauxEmprunt } from './finance.js';
+import { couponsAnnuels, detteTotale, ebitAnnuel, ebitNormatif, tauxEmprunt } from './finance.js';
 import { DECOTE_HOLDING, SECT_BY_ID, estHolding } from './secteurs.js';
 
 // ---------- VALORISATION ----------
@@ -14,8 +14,10 @@ export function multiple(s, c) {
 }
 // Part du chiffre d'affaires en construction que le marché valorise déjà
 export const ANTICIPATION = 0.75;
+// Le marché capitalise l'EBIT normatif : les dépenses de croissance, de R&D ou de marketing
+// comptent pour ce qu'elles coûtent en trésorerie et pour leurs effets, pas pour leur poids dans le résultat publié.
 export function prixCible(s, c) {
-  const ebit = ebitAnnuel(c) + ANTICIPATION * (c.caPipeline || 0) * c.margeRef;
+  const ebit = ebitNormatif(c) + ANTICIPATION * (c.caPipeline || 0) * c.margeRef;
   const ve = Math.max(ebit, 0.02 * c.ca) * multiple(s, c);
   const part = valeurParticipations(s, c.id) * (estHolding(c) ? 1 - DECOTE_HOLDING : 1);
   const cp = ve - detteTotale(c) + c.cash + part;

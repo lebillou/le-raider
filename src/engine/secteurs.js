@@ -3,17 +3,19 @@
 // ---------- SECTEURS ----------
 // mult : multiple VE/EBIT de référence ; g : croissance annuelle ; beta : sensibilité à la conjoncture
 // marge : marge d'exploitation de référence ; vol : volatilité trimestrielle ; rot : CA / actifs
+// effort : levier de marge propre au secteur (R&D ou marketing), budget habituel en part du CA
+//   (déjà compris dans la marge de référence) et efficacité relative d'un euro dépensé au-delà
 export const SECTEURS = [
-  { id: 'energie',   nom: 'Énergie',        mult: 6,  g: 0.02,  beta: 1.2, marge: 0.12, vol: 0.10, rot: 0.6 },
-  { id: 'banque',    nom: 'Banque',         mult: 8,  g: 0.03,  beta: 1.0, marge: 0.20, vol: 0.09, rot: 0.3 },
-  { id: 'distrib',   nom: 'Distribution',   mult: 8,  g: 0.025, beta: 0.6, marge: 0.04, vol: 0.06, rot: 2.5 },
-  { id: 'industrie', nom: 'Industrie',      mult: 7,  g: 0.02,  beta: 1.4, marge: 0.08, vol: 0.09, rot: 1.2 },
-  { id: 'techno',    nom: 'Technologie',    mult: 16, g: 0.08,  beta: 1.1, marge: 0.14, vol: 0.14, rot: 1.5 },
-  { id: 'sante',     nom: 'Santé',          mult: 13, g: 0.05,  beta: 0.4, marge: 0.15, vol: 0.07, rot: 1.0 },
-  { id: 'immo',      nom: 'Immobilier',     mult: 12, g: 0.02,  beta: 0.8, marge: 0.35, vol: 0.07, rot: 0.15 },
-  { id: 'transport', nom: 'Transport',      mult: 6,  g: 0.02,  beta: 1.5, marge: 0.06, vol: 0.10, rot: 0.8 },
-  { id: 'agro',      nom: 'Agroalimentaire',mult: 9,  g: 0.02,  beta: 0.3, marge: 0.07, vol: 0.05, rot: 1.4 },
-  { id: 'medias',    nom: 'Médias & luxe',  mult: 12, g: 0.04,  beta: 0.9, marge: 0.12, vol: 0.10, rot: 1.0 },
+  { id: 'energie',   nom: 'Énergie',        mult: 6,  g: 0.02,  beta: 1.2, marge: 0.12, vol: 0.10, rot: 0.6, effort: { nature: 'rd', norme: 0.015, efficacite: 0.6 } },
+  { id: 'banque',    nom: 'Banque',         mult: 8,  g: 0.03,  beta: 1.0, marge: 0.20, vol: 0.09, rot: 0.3, effort: { nature: 'marketing', norme: 0.03, efficacite: 0.7 } },
+  { id: 'distrib',   nom: 'Distribution',   mult: 8,  g: 0.025, beta: 0.6, marge: 0.04, vol: 0.06, rot: 2.5, effort: { nature: 'marketing', norme: 0.02, efficacite: 1.0 } },
+  { id: 'industrie', nom: 'Industrie',      mult: 7,  g: 0.02,  beta: 1.4, marge: 0.08, vol: 0.09, rot: 1.2, effort: { nature: 'rd', norme: 0.03, efficacite: 0.9 } },
+  { id: 'techno',    nom: 'Technologie',    mult: 16, g: 0.08,  beta: 1.1, marge: 0.14, vol: 0.14, rot: 1.5, effort: { nature: 'rd', norme: 0.12, efficacite: 1.3 } },
+  { id: 'sante',     nom: 'Santé',          mult: 13, g: 0.05,  beta: 0.4, marge: 0.15, vol: 0.07, rot: 1.0, effort: { nature: 'rd', norme: 0.1, efficacite: 1.2 } },
+  { id: 'immo',      nom: 'Immobilier',     mult: 12, g: 0.02,  beta: 0.8, marge: 0.35, vol: 0.07, rot: 0.15, effort: { nature: 'marketing', norme: 0.005, efficacite: 0.5 } },
+  { id: 'transport', nom: 'Transport',      mult: 6,  g: 0.02,  beta: 1.5, marge: 0.06, vol: 0.10, rot: 0.8, effort: { nature: 'marketing', norme: 0.015, efficacite: 0.7 } },
+  { id: 'agro',      nom: 'Agroalimentaire',mult: 9,  g: 0.02,  beta: 0.3, marge: 0.07, vol: 0.05, rot: 1.4, effort: { nature: 'marketing', norme: 0.05, efficacite: 1.0 } },
+  { id: 'medias',    nom: 'Médias & luxe',  mult: 12, g: 0.04,  beta: 0.9, marge: 0.12, vol: 0.10, rot: 1.0, effort: { nature: 'marketing', norme: 0.08, efficacite: 1.3 } },
 ];
 // La holding n'a pas d'exploitation : elle vaut son actif net, décoté par le marché
 export const HOLDING = { id: 'holding', nom: 'Holding', mult: 0, g: 0, beta: 0.5, marge: 0, vol: 0.06, rot: 0 };

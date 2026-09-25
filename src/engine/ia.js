@@ -8,6 +8,7 @@ import { MANDATS_MAX, _prendreMandat, _restructurer, mandatsDe, peutRestructurer
 import { capaciteEmprunt, detteTotale, ebitAnnuel } from './finance.js';
 import { acheter, apercuOPA, lancerOPA, vendre } from './marche.js';
 import { _emprunter, distribuer } from './pilotage.js';
+import { _definirStrategie, croissanceDe, effortDe, parametresEffort } from './strategie.js';
 import { estHolding } from './secteurs.js';
 import { prixCible } from './valorisation.js';
 
@@ -46,6 +47,14 @@ export function jouerRaiders(s, r) {
       const c = s.societes[id];
       if (!c.active) continue;
       if (peutRestructurer(s, c) && r() < 0.6) _restructurer(s, c, 'concurrent', rd.id);
+      // Stratégie : Lemarchand sacrifie la R&D et la croissance au résultat immédiat ; Vauclair investit
+      // là où l'effort rapporte le plus ; Meridian ne s'attarde pas assez pour s'en soucier
+      const pe = parametresEffort(c);
+      const voulue = !pe ? null
+        : rd.style === 'raider' ? { croissance: -0.02, effort: 0.5 * pe.norme }
+        : rd.style === 'valeur' && pe.efficacite >= 1.2 ? { croissance: 0, effort: pe.norme + 0.02 }
+        : null;
+      if (voulue && (Math.abs(croissanceDe(c) - voulue.croissance) > 1e-9 || Math.abs(effortDe(c) - voulue.effort) > 1e-9)) _definirStrategie(s, c, voulue, 'concurrent', rd.id);
       c.payout = rd.payout;
       if (rd.levierMax > 0) {
         const cap = Math.min(capaciteEmprunt(c, s), estHolding(c) ? Infinity : rd.levierMax * ebitAnnuel(c) - detteTotale(c));

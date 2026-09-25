@@ -20,3 +20,5 @@ export const fT = (t) => t >= 1 ? nf(2).format(t) + ' M' : nf(0).format(t * 1000
 export const classeVar = (v) => v > 0.0005 ? 'hausse' : v < -0.0005 ? 'baisse' : '';
 
 export const signe = (v, d = 1) => (v > 0 ? '+' : '') + nf(d).format(100 * v) + ' %';
+// Écart en points de pourcentage
+export const fPts = (v, d = 1) => (v > 0 ? '+' : '') + nf(d).format(100 * v) + ' pt';

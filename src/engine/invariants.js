@@ -1,5 +1,6 @@
 // Invariants comptables vérifiés par les tests.
 import { actives } from './acces.js';
+import { CROISSANCE_MAX, CROISSANCE_MIN, effortMax } from './strategie.js';
 
 // ---------- INVARIANTS (tests) ----------
 export function verifierInvariants(s) {
@@ -12,6 +13,9 @@ export function verifierInvariants(s) {
     if (c.prix <= 0) err.push(`${c.id}: prix ${c.prix}`);
     if (c.actions <= 0) err.push(`${c.id}: actions ${c.actions}`);
     if (c.actionnaires[c.id]) err.push(`${c.id} se détient elle-même`);
+    for (const k of ['margeRef', 'margeLatente', 'effort', 'croissanceVisee']) if (c[k] !== undefined && !isFinite(c[k])) err.push(`${c.id}.${k} = ${c[k]}`);
+    if (c.effort !== undefined && (c.effort < -1e-9 || c.effort > effortMax(c) + 1e-9)) err.push(`${c.id}: budget ${c.effort} hors bornes`);
+    if (c.croissanceVisee !== undefined && (c.croissanceVisee < CROISSANCE_MIN - 1e-9 || c.croissanceVisee > CROISSANCE_MAX + 1e-9)) err.push(`${c.id}: croissance visée ${c.croissanceVisee} hors bornes`);
     for (const o of c.obligations || []) if (!(o.nominal > 0) || !isFinite(o.coupon) || !(o.echeance > 0)) err.push(`${c.id}: obligation invalide ${JSON.stringify(o)}`);
   }
   const j = s.joueur;

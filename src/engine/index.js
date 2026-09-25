@@ -14,6 +14,7 @@ export * from './pilotage.js';
 export * from './emission.js';
 export * from './obligations.js';
 export * from './dirigeants.js';
+export * from './strategie.js';
 export * from './trimestre.js';
 export * from './invariants.js';
 export * from './courtage.js';

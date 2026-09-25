@@ -1,12 +1,16 @@
 // Dette, levier, notation, taux et capacité d'emprunt.
 import { valeurParticipations } from './acces.js';
 import { estHolding } from './secteurs.js';
+import { chargeStrategique } from './strategie.js';
 
 // ---------- NOTATION ----------
 export const NOTATIONS = ['AAA', 'AA', 'A', 'BBB', 'BB', 'B', 'CCC'];
 export const SPREADS = { AAA: 0.005, AA: 0.008, A: 0.012, BBB: 0.02, BB: 0.035, B: 0.06, CCC: 0.10 };
 
-export const ebitAnnuel = (c) => c.ca * c.marge;
+// EBIT publié : après les charges de croissance et l'écart de budget R&D ou marketing à la norme du secteur
+export const ebitAnnuel = (c) => c.ca * (c.marge - chargeStrategique(c));
+// EBIT normatif : celui d'une gestion habituelle, que le marché capitalise
+export const ebitNormatif = (c) => c.ca * c.marge;
 // Dette obligataire (nominal restant) et dette totale, bancaire comprise
 export const detteObligataire = (c) => (c.obligations || []).reduce((a, o) => a + o.nominal, 0);
 export const detteTotale = (c) => c.dette + detteObligataire(c);
