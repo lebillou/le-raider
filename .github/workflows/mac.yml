@@ -1,0 +1,44 @@
+# Compile l'application Mac (universelle : Apple Silicon et Intel) et la joint à une version GitHub.
+# Déclenchement : pousser une étiquette de version, par exemple  git tag v0.1.0 && git push --tags
+# ou lancer le workflow à la main depuis l'onglet Actions.
+name: Application Mac
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm test
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target universal-apple-darwin
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          releaseName: Le Raider ${{ github.ref_type == 'tag' && github.ref_name || format('(build {0})', github.run_number) }}
+          releaseBody: |
+            Application Mac universelle (Apple Silicon et Intel). Téléchargez le fichier .dmg ci-dessous.
+            Premier lancement : l'application n'est pas signée par un compte Apple Developer, macOS la bloque une fois.
+            Ouvrez Réglages Système > Confidentialité et sécurité, puis « Ouvrir quand même » en bas de la page.
+            Si macOS indique que l'application est endommagée : dans le Terminal, xattr -cr "/Applications/Le Raider.app"
+          releaseDraft: false
+          prerelease: false

@@ -1,0 +1,16 @@
+{
+  "name": "Le Raider",
+  "short_name": "Le Raider",
+  "description": "Simulation boursière : prenez le contrôle de sociétés cotées, face à trois raiders concurrents.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EDF0E5",
+  "theme_color": "#E3E7D8",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
