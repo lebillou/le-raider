@@ -1,0 +1,10 @@
+#!/bin/bash
+# Installe les dépendances npm au démarrage d'une session Claude Code sur le web.
+set -euo pipefail
+
+if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  exit 0
+fi
+
+cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}"
+npm install --no-audit --no-fund
