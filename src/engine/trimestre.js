@@ -13,6 +13,7 @@ import { traiterEcheances } from './obligations.js';
 import { SECTEURS, SECT_BY_ID, estHolding } from './secteurs.js';
 import { croissanceSecteur, evolutionStrategique } from './strategie.js';
 import { compteCourant, tauxCompteCourant } from './comptes.js';
+import { traiterManoeuvres } from './manoeuvres.js';
 import { cloner, crediter } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
@@ -54,6 +55,8 @@ export function finTrimestre(s0) {
       ev.effet(s, c); journal(s, 'evenement', ev.texte(c));
     } else { ev.effet(s); journal(s, 'evenement', ev.texte); }
   }
+  // 2 bis. Manœuvres du joueur : enquêtes de l'AMF sur les rumeurs, décisions antitrust
+  traiterManoeuvres(s, r);
 
   // 3. Exploitation de chaque société
   const dividendes = {};   // encaissements reportés pour ne pas mêler ordre et effets

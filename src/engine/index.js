@@ -16,6 +16,7 @@ export * from './obligations.js';
 export * from './dirigeants.js';
 export * from './strategie.js';
 export * from './comptes.js';
+export * from './manoeuvres.js';
 export * from './trimestre.js';
 export * from './invariants.js';
 export * from './courtage.js';

@@ -23,6 +23,11 @@ test('40 parties jouées au hasard respectent les invariants comptables', () => 
             const branche = fondateur !== J && rnd() < 0.3 ? rnd() * 0.55 : 0;
             s = m.creerSociete(s, fondateur, { type, secteur: pick(m.SECTEURS).id, nom: `Test ${g}-${t}-${k}`, capital: (type === 'holding' ? 2 : 5) * rnd() + rnd() * f * 0.5, titres, branche });
           }
+          else if (x < 0.59) {
+            // Manœuvres : rumeur sur n'importe quelle société, plainte d'une société contrôlée contre une autre
+            if (rnd() < 0.6) s = m.lancerRumeur(s, cible.id, 0.2 + rnd() * f * 0.05);
+            else if (ctrl.size) s = m.porterPlainte(s, pick([...ctrl]), cible.id);
+          }
           else if (ctrl.size) {
             const fid = pick([...ctrl]), c = s.societes[fid], y = rnd();
             if (y < 0.15) s = m.emprunter(s, fid, m.capaciteEmprunt(c, s) * rnd());

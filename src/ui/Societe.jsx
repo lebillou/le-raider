@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
+import { procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
 import { Spark } from './Graphiques.jsx';
 import { DetailMandat } from './Portefeuille.jsx';
 import { classeVar, fE, fM, fP, fPts, fT, nf, signe } from './format.js';
@@ -109,8 +109,11 @@ export function Societe({ s, id, onAction, onSel }) {
           <button className="plein" onClick={() => onAction({ type: 'acheter', cible: c.id })}>Acheter</button>
           <button disabled={!(c.actionnaires[JOUEUR] > 0) && !ctrl.size} onClick={() => onAction({ type: 'vendre', cible: c.id })}>Vendre</button>
           <button onClick={() => onAction({ type: 'opa', cible: c.id })}>Lancer une offre (OPA, OPE)</button>
+          {!estCtrl && <button onClick={() => onAction({ type: 'rumeur', cible: c.id })}>Diffuser une rumeur</button>}
+          {!estCtrl && !hold && <button onClick={() => onAction({ type: 'plainte', cible: c.id })} disabled={procesEnCours(s, c.id).length > 0}>Plainte antitrust</button>}
         </div>
       )}
+      {procesEnCours(s, c.id).map(p => <div className="aide" key={p.plaignant}>Procédure antitrust en cours sur plainte de {s.societes[p.plaignant].nom} : décision en {libelleTour(p.echeance)}, chances de condamnation {fP(p.chances)}.</div>)}
       {!estCtrl && !s.fini && <div className="aide">Contrôler une société demande 50 % des droits de vote, ou 25 % si aucun autre bloc n'atteint 25 %.{rival ? ` Ici, ${nomGroupe(s, rival[0])} pèse ${fP(rival[1] / c.actions, 1)} : ${rival[1] / c.actions >= SEUIL_RELATIF ? `il vous faudra ${fM(SEUIL_CONTROLE * capi(c))} (50 %) au cours actuel, ou le faire sortir` : `${fM(SEUIL_RELATIF * capi(c))} (25 %) suffisent au cours actuel`}.` : ` Aucun bloc constitué : ${fM(SEUIL_RELATIF * capi(c))} (25 %) suffisent au cours actuel.`} Vous disposez de {fM(dispoJ)} (trésorerie et marge). {c.actionnaires.noyau ? `Le noyau dur (${fP(pct(c, 'noyau'))}) ne cède qu'à une OPA avec au moins ${fP(PRIME_NOYAU)} de prime.` : ''}</div>}
 
       {parts.length > 0 && (<>

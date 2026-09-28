@@ -21,6 +21,8 @@ export function Bilan({ s, onNouvelle, onProlonger, onSel }) {
     ['Dividendes exceptionnels', (a) => compte(a.id, /dividende exceptionnel/)],
     ['Restructurations', (a) => compte(a.id, /restructuration/)],
     ['Révisions de stratégie', (a) => compte(a.id, /revoit sa stratégie/)],
+    ['Plaintes antitrust', (a) => compte(a.id, /saisit l'Autorité de la concurrence/)],
+    ['Rumeurs lancées (démasquées)', (a) => a.id === JOUEUR ? `${compte(a.id, /^Vous faites circuler/)} (${compte(a.id, /^L'AMF démasque/)})` : '—'],
     ['Augmentations de capital', (a) => compte(a.id, /augmentation de capital/)],
     ['Émissions obligataires', (a) => compte(a.id, /émet .* d'obligations/)],
     ['Défauts obligataires', (a) => compte(a.id, /^Défaut de/)],
