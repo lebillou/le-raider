@@ -22,7 +22,7 @@ export function Bilan({ s, onNouvelle, onProlonger, onSel }) {
     ['Restructurations', (a) => compte(a.id, /restructuration/)],
     ['Révisions de stratégie', (a) => compte(a.id, /revoit sa stratégie/)],
     ['Plaintes antitrust', (a) => compte(a.id, /saisit l'Autorité de la concurrence/)],
-    ['Rumeurs lancées (démasquées)', (a) => a.id === JOUEUR ? `${compte(a.id, /^Vous faites circuler/)} (${compte(a.id, /^L'AMF démasque/)})` : '—'],
+    ['Rumeurs lancées (démasquées)', (a) => { const cp = a.id === JOUEUR ? s.joueur : s.raiders[a.id]; return `${cp.rumeursLancees || 0} (${cp.rumeursDemasquees || 0})`; }],
     ['Augmentations de capital', (a) => compte(a.id, /augmentation de capital/)],
     ['Émissions obligataires', (a) => compte(a.id, /émet .* d'obligations/)],
     ['Défauts obligataires', (a) => compte(a.id, /^Défaut de/)],

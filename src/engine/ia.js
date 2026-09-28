@@ -8,6 +8,7 @@ import { MANDATS_MAX, _prendreMandat, _restructurer, mandatsDe, peutRestructurer
 import { capaciteEmprunt, detteTotale, ebitAnnuel } from './finance.js';
 import { acheter, apercuOPA, lancerOPA, vendre } from './marche.js';
 import { _emprunter, distribuer } from './pilotage.js';
+import { BUDGET_RUMEUR_MIN, _lancerRumeur, _porterPlainte, apercuPlainte, budgetPourChoc, peutPoursuivre, rumeursRecentes } from './manoeuvres.js';
 import { _definirStrategie, croissanceDe, effortDe, parametresEffort } from './strategie.js';
 import { estHolding } from './secteurs.js';
 import { prixCible } from './valorisation.js';
@@ -42,6 +43,32 @@ export function jouerRaiders(s, r) {
     {
       const libres = [...ctrl].map(id => s.societes[id]).filter(c => c.active && !c.ceo).sort((a, b) => tailleRemun(b) - tailleRemun(a));
       for (const c of libres) { if (mandatsDe(s, rd.id).length >= MANDATS_MAX) break; _prendreMandat(s, c, rd.id); }
+    }
+    // Rumeur avant d'acheter ou d'attaquer : Lemarchand et Meridian font baisser le cours d'une cible,
+    // si le budget reste modeste et qu'ils n'ont pas déjà trop attiré l'attention de l'AMF
+    const rumeurAvant = (id, choc) => {
+      if (rd.style === 'valeur' || r() >= 0.5 * niv.audace || rumeursRecentes(s, rd.id) >= 2) return;
+      const c = s.societes[id];
+      const budget = budgetPourChoc(choc, capi(c));
+      if (budget < BUDGET_RUMEUR_MIN || budget > 0.1 * dispoActeur(s, rd.id, rd.margeMax)) return;
+      try { _lancerRumeur(s, rd.id, c, budget); } catch (e) { if (globalThis.DEBUG_RAIDER) console.log('refus IA :', e.message); }
+    };
+
+    // 0 bis. Lemarchand attaque en justice le leader d'un secteur où il possède un concurrent
+    if (rd.style === 'raider' && r() < 0.25 * niv.audace) {
+      let meilleure = null;
+      for (const id of ctrl) {
+        const P = s.societes[id];
+        if (!P.active || estHolding(P)) continue;
+        for (const c of actives(s)) {
+          if (c.secteur !== P.secteur || c.id === P.id || ctrl.has(c.id) || estHolding(c) || !peutPoursuivre(s, c)) continue;
+          const ap = apercuPlainte(s, P.id, c.id);
+          if (ap.chances < 0.4 || P.cash < ap.frais) continue;
+          const gain = ap.chances * (ap.dommages + ap.caGagne * P.marge * 5) - ap.frais;   // dommages et parts de marché, au jugé
+          if (gain > 0 && (!meilleure || gain > meilleure.gain)) meilleure = { P, c, gain };
+        }
+      }
+      if (meilleure) { try { _porterPlainte(s, rd.id, meilleure.P, meilleure.c); } catch (e) { if (globalThis.DEBUG_RAIDER) console.log('refus IA :', e.message); } }
     }
     // 1. Pilotage des filiales : restructurer, distribuer, endetter selon l'appétit
     for (const id of ctrl) {
@@ -114,6 +141,7 @@ export function jouerRaiders(s, r) {
         const sc = (1.3 - ratio) + (c.actionnaires[rd.id] ? 0.3 : 0) + (rd.style !== 'valeur' && partJ > 0.1 && partJ < 0.5 ? 0.4 : 0) - prime * 0.5;
         if (sc > score) { score = sc; meilleure = { id: c.id, prime }; }
       }
+      if (meilleure) rumeurAvant(meilleure.id, 0.08);
       if (meilleure && appliquer(() => lancerOPA(s, rd.id, meilleure.id, meilleure.prime))) ctrlR[rd.id] = controlees(s, rd.id);
     }
 
@@ -134,6 +162,7 @@ export function jouerRaiders(s, r) {
       const b = budget();
       if (b < 1) break;
       const c = s.societes[id];
+      if (rd.style === 'opportuniste' && pct(c, JOUEUR) > 0.05 && !ctrlJ.has(c.id)) rumeurAvant(id, 0.06);   // Meridian déprécie vos cibles avant d'y entrer
       const montant = Math.min(b, capi(c) * (0.03 + 0.04 * r()));
       if (montant < 0.5) continue;
       const prixEntree = c.prix;

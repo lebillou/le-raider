@@ -32,7 +32,12 @@ test('investir coûte immédiatement un peu de valeur et la rend à maturité', 
   for (let t = 0; t < 10; t++) s = m.finTrimestre(s);
   const c = s.societes.F1;
   const avant = m.prixCible(s, c) * c.actions;
-  const s2 = m.investir(s, 'F1', Math.min(4, c.cash));
+  const montant = Math.min(4, c.cash);
+  const s2 = m.investir(s, 'F1', montant);
   const apres = m.prixCible(s2, s2.societes.F1) * s2.societes.F1.actions;
-  assert.ok(apres < avant && apres > avant - 4, 'le marché valorise une partie de l\'investissement tout de suite');
+  // Le marché valorise tout de suite 75 % de l'activité future, à son multiple du moment
+  const facteur = m.ANTICIPATION * m.RENDEMENT_INVEST * m.multiple(s, c) / m.SECT_BY_ID.industrie.mult;
+  assert.ok(Math.abs((apres - avant) - montant * (facteur - 1)) < 1e-6, `${apres - avant} contre ${montant * (facteur - 1)}`);
+  // Au multiple de référence, un euro investi vaut 0,86 € tout de suite et 1,15 € à maturité
+  assert.ok(m.ANTICIPATION * m.RENDEMENT_INVEST < 1 && m.RENDEMENT_INVEST > 1);
 });

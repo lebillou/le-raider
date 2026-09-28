@@ -1,6 +1,6 @@
 // Manœuvres hostiles : plaintes antitrust contre un concurrent, rumeurs pour faire baisser un cours.
 import { actives, capi, fortune, societe } from './acces.js';
-import { JOUEUR, clamp } from './config.js';
+import { JOUEUR, RAIDER_BY_ID, clamp, compte } from './config.js';
 import { controlees } from './controle.js';
 import { journal } from './creation.js';
 import { SECT_BY_ID, estHolding } from './secteurs.js';
@@ -41,20 +41,25 @@ export function apercuPlainte(s, plaignantId, cibleId) {
     amende: AMENDE_ANTITRUST * c.ca, dommages: DOMMAGES_ANTITRUST * c.ca, caPerdu: INJONCTION * c.ca, caGagne: INJONCTION * PART_PLAIGNANT * c.ca,
   };
 }
+export const peutPoursuivre = (s, c) => !procesEnCours(s, c.id).length && (c.decisionAntitrust === undefined || s.tour - c.decisionAntitrust >= REPIT_ANTITRUST);
 export function porterPlainte(s0, plaignantId, cibleId) {
   const s = cloner(s0);
   const ctrl = controlees(s);
   const P = societe(s, plaignantId), c = societe(s, cibleId);
   if (!ctrl.has(P.id)) throw new Error(`Vous ne contrôlez pas ${P.nom}.`);
   if (ctrl.has(c.id)) throw new Error(`${c.nom} fait partie de votre groupe : on ne poursuit pas sa propre société.`);
+  _porterPlainte(s, JOUEUR, P, c);
+  return s;
+}
+// Plainte au nom d'un acteur (vous ou un raider), sans clonage : l'appelant a vérifié le contrôle
+export function _porterPlainte(s, acteur, P, c) {
   if (procesEnCours(s, c.id).length) throw new Error(`Une procédure contre ${c.nom} est déjà en cours.`);
   if (c.decisionAntitrust !== undefined && s.tour - c.decisionAntitrust < REPIT_ANTITRUST) throw new Error(`L'Autorité de la concurrence a statué sur ${c.nom} il y a peu : nouvelle plainte possible dans ${REPIT_ANTITRUST - (s.tour - c.decisionAntitrust)} trimestre(s).`);
-  const ap = apercuPlainte(s, plaignantId, cibleId);
+  const ap = apercuPlainte(s, P.id, c.id);
   debiter(s, P.id, ap.frais);
-  s.proces = [...(s.proces || []), { plaignant: P.id, cible: c.id, tour: s.tour, echeance: ap.echeance, chances: ap.chances, frais: ap.frais }];
+  s.proces = [...(s.proces || []), { acteur, plaignant: P.id, cible: c.id, tour: s.tour, echeance: ap.echeance, chances: ap.chances, frais: ap.frais }];
   c.sentiment = clamp((c.sentiment || 0) - 0.05, -0.5, 0.5);   // l'incertitude pèse sur le titre
-  journal(s, 'filiale', `${P.nom} saisit l'Autorité de la concurrence contre ${c.nom} pour abus de position dominante (${Math.round(100 * ap.part)} % du marché) ; décision attendue en ${libelleTour(ap.echeance)}.`, JOUEUR);
-  return s;
+  journal(s, acteur === JOUEUR ? 'filiale' : 'concurrent', `${P.nom} saisit l'Autorité de la concurrence contre ${c.nom} pour abus de position dominante (${Math.round(100 * ap.part)} % du marché) ; décision attendue en ${libelleTour(ap.echeance)}.`, acteur);
 }
 
 // ---------- RUMEURS ----------
@@ -66,28 +71,39 @@ export const BUDGET_RUMEUR_MIN = 0.2;
 export const CHOC_RUMEUR_MAX = 0.2;
 export const MEMOIRE_AMF = 8;                 // trimestres pendant lesquels l'AMF se souvient de vos rumeurs
 export const chocRumeur = (budget, capitalisation) => Math.min(CHOC_RUMEUR_MAX, 0.7 * Math.sqrt(budget / capitalisation));
-export const rumeursRecentes = (s) => (s.rumeurs || []).filter(x => s.tour - x.tour < MEMOIRE_AMF).length;
-export const risqueRumeur = (s, choc) => Math.min(0.75, 0.12 + 0.08 * rumeursRecentes(s) + 0.8 * choc);
-export const amendeAMF = (s, budget) => Math.max(1, 5 * budget + 0.03 * Math.max(0, fortune(s)));
+// Les rumeurs d'un acteur (vous ou un raider) ; une rumeur sans auteur vient d'une ancienne sauvegarde : c'est la vôtre
+export const auteurRumeur = (x) => x.acteur || JOUEUR;
+export const rumeursRecentes = (s, h = JOUEUR) => (s.rumeurs || []).filter(x => auteurRumeur(x) === h && s.tour - x.tour < MEMOIRE_AMF).length;
+export const risqueRumeur = (s, choc, h = JOUEUR) => Math.min(0.75, 0.12 + 0.08 * rumeursRecentes(s, h) + 0.8 * choc);
+export const amendeAMF = (s, budget, h = JOUEUR) => Math.max(1, 5 * budget + 0.03 * Math.max(0, fortune(s, h)));
+// Budget qui produit une baisse donnée : inverse de chocRumeur
+export const budgetPourChoc = (choc, capitalisation) => capitalisation * Math.pow(choc / 0.7, 2);
 
-export function apercuRumeur(s, cibleId, budget) {
+export function apercuRumeur(s, cibleId, budget, h = JOUEUR) {
   const c = societe(s, cibleId);
   if (!(budget >= BUDGET_RUMEUR_MIN)) throw new Error(`Budget minimum : ${BUDGET_RUMEUR_MIN} M€.`);
   const choc = chocRumeur(budget, capi(c));
-  return { choc, prixApres: c.prix * (1 - choc), risque: risqueRumeur(s, choc), amende: amendeAMF(s, budget), recentes: rumeursRecentes(s) };
+  return { choc, prixApres: c.prix * (1 - choc), risque: risqueRumeur(s, choc, h), amende: amendeAMF(s, budget, h), recentes: rumeursRecentes(s, h) };
 }
 export function lancerRumeur(s0, cibleId, budget) {
   const s = cloner(s0);
   const c = societe(s, cibleId);
   if (controlees(s).has(c.id)) throw new Error(`${c.nom} fait partie de votre groupe : la dénigrer ne ferait que vous appauvrir.`);
-  const ap = apercuRumeur(s, cibleId, budget);
-  debiter(s, JOUEUR, budget);
+  _lancerRumeur(s, JOUEUR, c, budget);
+  return s;
+}
+// Rumeur au nom d'un acteur, sans clonage. Celle d'un raider reste anonyme tant que l'AMF ne l'a pas démasquée.
+export function _lancerRumeur(s, h, c, budget) {
+  const ap = apercuRumeur(s, c.id, budget, h);
+  debiter(s, h, budget);
   c.prix *= 1 - ap.choc;
   const persistance = 0.5 * Math.log(1 - ap.choc);   // une partie de la défiance s'installe dans le sentiment
   c.sentiment = clamp((c.sentiment || 0) + persistance, -0.5, 0.5);
-  s.rumeurs = [...(s.rumeurs || []), { cible: c.id, tour: s.tour, budget, choc: ap.choc, risque: ap.risque, persistance }];
-  journal(s, 'alerte', `Vous faites circuler des rumeurs alarmantes sur ${c.nom} (${budget.toFixed(1)} M€) : le titre perd ${Math.round(100 * ap.choc)} %.`, JOUEUR);
-  return s;
+  s.rumeurs = [...(s.rumeurs || []), { acteur: h, cible: c.id, tour: s.tour, budget, choc: ap.choc, risque: ap.risque, persistance }];
+  const cp = compte(s, h);
+  cp.rumeursLancees = (cp.rumeursLancees || 0) + 1;
+  if (h === JOUEUR) journal(s, 'alerte', `Vous faites circuler des rumeurs alarmantes sur ${c.nom} (${budget.toFixed(1)} M€) : le titre perd ${Math.round(100 * ap.choc)} %.`, JOUEUR);
+  else journal(s, 'evenement', `Des rumeurs alarmantes circulent sur ${c.nom}, de source inconnue : le titre perd ${Math.round(100 * ap.choc)} %.`);
 }
 
 // ---------- RÉSOLUTION À LA CLÔTURE ----------
@@ -100,13 +116,18 @@ export function traiterManoeuvres(s, r) {
     x.examinee = true;
     if (r() >= x.risque) continue;
     x.demasquee = true;
-    const amende = amendeAMF(s, x.budget);
-    const j = s.joueur;
-    j.cash -= amende;
-    if (j.cash < 0) { j.marge += -j.cash; j.cash = 0; }
+    const h = auteurRumeur(x);
     const c = s.societes[x.cible];
     if (c?.active) c.sentiment = clamp((c.sentiment || 0) - x.persistance, -0.5, 0.5);   // le démenti efface la défiance
-    journal(s, 'alerte', `L'AMF démasque votre campagne de rumeurs contre ${c ? c.nom : 'une société'} : amende de ${amende.toFixed(1)} M€ ; le titre se redresse.`, JOUEUR);
+    if (h !== JOUEUR && !s.raiders[h]?.actif) continue;                                     // un raider disparu n'a plus rien à payer
+    const amende = amendeAMF(s, x.budget, h);
+    const cp = compte(s, h);
+    cp.cash -= amende;
+    if (cp.cash < 0) { cp.marge += -cp.cash; cp.cash = 0; }
+    cp.rumeursDemasquees = (cp.rumeursDemasquees || 0) + 1;
+    const nomCible = c ? c.nom : 'une société';
+    if (h === JOUEUR) journal(s, 'alerte', `L'AMF démasque votre campagne de rumeurs contre ${nomCible} : amende de ${amende.toFixed(1)} M€ ; le titre se redresse.`, JOUEUR);
+    else journal(s, 'concurrent', `L'AMF démasque ${RAIDER_BY_ID[h].nom}, à l'origine des rumeurs contre ${nomCible} : amende de ${amende.toFixed(1)} M€ ; le titre se redresse.`, h);
   }
   s.rumeurs = (s.rumeurs || []).filter(x => s.tour - x.tour < MEMOIRE_AMF);
   if (!s.rumeurs.length) delete s.rumeurs;

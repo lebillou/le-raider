@@ -41,7 +41,7 @@ test('l\'AMF démasque ou non, selon le tirage, et la sanction est appliquée', 
   // La rumeur est examinée une seule fois, puis oubliée au bout de deux ans
   let x = b;
   for (let t = 0; t < m.MEMOIRE_AMF; t++) x = m.finTrimestre(x);
-  assert.equal(x.rumeurs, undefined);
+  assert.equal((x.rumeurs || []).filter(r => r.acteur === J).length, 0, 'vos rumeurs sont oubliées');
   assert.throws(() => m.lancerRumeur(prendreUneSociete(5)[0], prendreUneSociete(5)[1], 1), /votre groupe/);
 });
 
