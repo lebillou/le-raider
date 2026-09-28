@@ -58,6 +58,11 @@ test('toutes les fenêtres d\'ordre', () => {
   contient(rendre(h(ui.App, { initial: s, selectionInitiale: 'F2' })), 'Marge cible', 'Croissance visée', 'Croissance et ');
   const autre = m.actives(s).find(c => !m.controlees(s).has(c.id) && !m.estHolding(c));
   contient(rendre(h(ui.Fenetre, { s, action: { type: 'rumeur', cible: autre.id }, onFermer() {}, onValider() {} })), 'Diffuser une rumeur', 'AMF');
+  const court = m.vendreADecouvert(s, autre.id, 1);
+  contient(rendre(h(ui.Fenetre, { s: court, action: { type: 'decouvert', cible: autre.id }, onFermer() {}, onValider() {} })), 'Vendre à découvert', 'prêt des titres');
+  contient(rendre(h(ui.Fenetre, { s: court, action: { type: 'couvrir', cible: autre.id }, onFermer() {}, onValider() {} })), 'Racheter les titres', 'Confirmer');
+  contient(rendre(h(ui.App, { initial: court, selectionInitiale: autre.id })), 'Vendre à découvert', 'Racheter (couvrir)', 'vendeur à découvert');
+  contient(rendre(h(ui.App, { initial: court, ongletInitial: 'portefeuille' })), 'Ventes à découvert');
   contient(rendre(h(ui.Fenetre, { s, action: { type: 'plainte', cible: autre.id }, onFermer() {}, onValider() {} })), 'Plainte antitrust', 'concurrente');
   contient(rendre(h(ui.App, { initial: s, selectionInitiale: autre.id })), 'Diffuser une rumeur', 'Plainte antitrust');
   contient(rendre(h(ui.Creation, { s, onFermer() {}, onValider() {} })), 'Créer une société', 'Raison sociale', 'Apports en nature', 'Apport en numéraire');

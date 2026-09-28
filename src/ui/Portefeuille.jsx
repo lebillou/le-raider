@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { creancesComptesCourants, ACQUISITION_OPTIONS, BONUS_CIBLE, JOUEUR, MANDATS_MAX, actives, capi, controlees, detentionEffective, fixeAnnuel, fortune, libelleTour, mandatsDe, titre, valeurPortefeuille } from '../engine/index.js';
+import { expositionCourte, positionsCourtes, creancesComptesCourants, ACQUISITION_OPTIONS, BONUS_CIBLE, JOUEUR, MANDATS_MAX, actives, capi, controlees, detentionEffective, fixeAnnuel, fortune, libelleTour, mandatsDe, titre, valeurPortefeuille } from '../engine/index.js';
 import { CourbeFortune } from './Graphiques.jsx';
 import { fE, fM, fMp, fP, fT, signe } from './format.js';
 
@@ -36,6 +36,7 @@ export function Portefeuille({ s, onSel, onCreer }) {
         <div className="ligne"><span>Trésorerie</span><b>{fM(j.cash)}</b></div>
         <div className="ligne"><span>Dette sur marge</span><b className={j.marge > 0 ? 'baisse' : ''}>{fM(j.marge)} à {fP(s.taux + 0.02, 1)}</b></div>
         <div className="ligne"><span>Portefeuille direct</span><b>{fM(valeurPortefeuille(s))}</b></div>
+        {expositionCourte(s) > 0.005 && <div className="ligne"><span>Ventes à découvert (à racheter)</span><b className="baisse">−{fM(expositionCourte(s))}</b></div>}
         {creancesComptesCourants(s) > 0.005 && <div className="ligne"><span>Comptes courants</span><b>{fM(creancesComptesCourants(s))}</b></div>}
         <div className="ligne"><span>Sociétés contrôlées</span><b>{ctrl.size}</b></div>
         <div className="ligne"><span>Mandats de PDG</span><b>{mandatsDe(s, JOUEUR).length} / {MANDATS_MAX}</b></div>
@@ -56,6 +57,18 @@ export function Portefeuille({ s, onSel, onCreer }) {
           </div>
         );
       })}
+      {Object.keys(positionsCourtes(s)).length > 0 && (<>
+        <h3 className="tit">Ventes à découvert</h3>
+        {Object.entries(positionsCourtes(s)).filter(([id]) => s.societes[id]?.active).map(([id, p]) => {
+          const c = s.societes[id], resultat = p.titres * (p.prixMoyen - c.prix);
+          return (
+            <div className="ligne" key={id} style={{ cursor: 'pointer' }} onClick={() => onSel(id)}>
+              <span style={{ color: 'var(--encre)', fontFamily: 'var(--serif)', fontSize: 14 }}>{c.nom}</span>
+              <b>{fT(p.titres)} vendus à {fE(p.prixMoyen)} · <span className={resultat >= 0 ? 'hausse' : 'baisse'}>{resultat >= 0 ? '+' : ''}{fM(resultat)}</span></b>
+            </div>
+          );
+        })}
+      </>)}
       {indirectes.length > 0 && (<>
         <h3 className="tit">Contrôlées par vos sociétés</h3>
         {indirectes.map(c => <div className="ligne" key={c.id} style={{ cursor: 'pointer' }} onClick={() => onSel(c.id)}><span style={{ color: 'var(--encre)', fontFamily: 'var(--serif)', fontSize: 14 }}>{c.nom}</span><b>{fP(detentionEffective(s, c.id, ctrl), 1)} effectif · {fM(capi(c))}</b></div>)}

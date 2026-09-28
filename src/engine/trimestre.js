@@ -14,6 +14,7 @@ import { SECTEURS, SECT_BY_ID, estHolding } from './secteurs.js';
 import { croissanceSecteur, evolutionStrategique } from './strategie.js';
 import { compteCourant, tauxCompteCourant } from './comptes.js';
 import { traiterManoeuvres } from './manoeuvres.js';
+import { gererDecouverts, solderDecouvertsFaillite } from './decouvert.js';
 import { cloner, crediter } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
@@ -129,6 +130,7 @@ export function finTrimestre(s0) {
     if (enFaillite) {
       if (c.ceo) _finMandat(s, c, 'liquidation');
       c.active = false; c.faillite = true; c.prix = 0;
+      solderDecouvertsFaillite(s, c);
       s.stats.faillites++;
       const partJ = detentionEffective(s, c.id, ctrlAvant);
       const ccJ = compteCourant(c);
@@ -169,6 +171,9 @@ export function finTrimestre(s0) {
       const remb = Math.min(produit, c.dette); c.dette -= remb; c.cash += produit - remb;
     }
   }
+
+  // 5 bis bis. Ventes à découvert : prêt des titres, dividendes dus, rappels, appels de couverture
+  gererDecouverts(s);
 
   // 5 ter. Mandats de dirigeants : révocations, levées d'options, revues annuelles
   gererMandats(s, repartitionControle(s));

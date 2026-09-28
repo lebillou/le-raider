@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { BUDGET_RUMEUR_MIN, DELAI_PLAINTE, apercuPlainte, apercuRumeur, lancerRumeur, porterPlainte, FRAIS_RESERVEE, apporterCompteCourant, compteCourant, rembourserCompteCourant, tauxCompteCourant, CROISSANCE_MAX, CROISSANCE_MIN, IMPOT, LIBELLE_EFFORT, PLAFOND_MARGE, apercuStrategie, croissanceDe, definirStrategie, effortDe, effortMax, parametresEffort, ACQUISITION_OPTIONS, ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_PAPIER, DELAI_EMISSION, DELAI_RESTRUCTURATION, IMPOT_PLUS_VALUE, IMPOT_REVENU, JOUEUR, MANDATS_MAX, MARGE_MAX, MATURITES, MODES_EMISSION, PENALITE_ANTICIPE, PRIME_NOYAU, RAIDERS, SECT_BY_ID, TYPES_OBLIGATIONS, acheter, actives, apercuAchat, apercuEmission, apercuMandat, apercuOPA, apercuObligations, apercuVente, apporterAOffre, caParEuro, capaciteEmprunt, capaciteObligataire, cederActifs, controlees, dividendeExceptionnel, emettreActions, emettreObligations, emprunter, estHolding, fixeAnnuel, fixerDividende, fusionner, investir, lancerOPA, levier, libelleTour, ltv, montantMaxEmission, multiple, natureOffre, nomDetenteur, nomGroupe, notation, pct, prendreMandat, quitterMandat, racheterActions, rembourser, rembourserObligation, restructurer, resultatNetAnnuel, tauxApport, tauxEmprunt, valeurPortefeuille, vendre } from '../engine/index.js';
+import { APPEL_DECOUVERT, MONTANT_DECOUVERT_MIN, PART_PRETABLE, TAUX_PRET_TITRES, apercuCouverture, apercuVenteDecouvert, capaciteDecouvert, couvrir, positionsCourtes, pretable, vendreADecouvert, BUDGET_RUMEUR_MIN, DELAI_PLAINTE, apercuPlainte, apercuRumeur, lancerRumeur, porterPlainte, FRAIS_RESERVEE, apporterCompteCourant, compteCourant, rembourserCompteCourant, tauxCompteCourant, CROISSANCE_MAX, CROISSANCE_MIN, IMPOT, LIBELLE_EFFORT, PLAFOND_MARGE, apercuStrategie, croissanceDe, definirStrategie, effortDe, effortMax, parametresEffort, ACQUISITION_OPTIONS, ANTICIPATION, COUT_RESTRUCTURATION, DECOTE_PAPIER, DELAI_EMISSION, DELAI_RESTRUCTURATION, IMPOT_PLUS_VALUE, IMPOT_REVENU, JOUEUR, MANDATS_MAX, MARGE_MAX, MATURITES, MODES_EMISSION, PENALITE_ANTICIPE, PRIME_NOYAU, RAIDERS, SECT_BY_ID, TYPES_OBLIGATIONS, acheter, actives, apercuAchat, apercuEmission, apercuMandat, apercuOPA, apercuObligations, apercuVente, apporterAOffre, caParEuro, capaciteEmprunt, capaciteObligataire, cederActifs, controlees, dividendeExceptionnel, emettreActions, emettreObligations, emprunter, estHolding, fixeAnnuel, fixerDividende, fusionner, investir, lancerOPA, levier, libelleTour, ltv, montantMaxEmission, multiple, natureOffre, nomDetenteur, nomGroupe, notation, pct, prendreMandat, quitterMandat, racheterActions, rembourser, rembourserObligation, restructurer, resultatNetAnnuel, tauxApport, tauxEmprunt, valeurPortefeuille, vendre } from '../engine/index.js';
 import { fE, fM, fMp, fP, fPts, fT, nf } from './format.js';
 
 export const LIBELLES = {
   acheter: 'Acheter des titres', vendre: 'Vendre des titres', opa: 'Lancer une offre',
   emprunter: 'Emprunter', rembourser: 'Rembourser la dette', dividende: 'Dividende exceptionnel',
   rachat: 'Racheter des actions', investir: 'Investir', ceder: 'Céder des actifs',
-  restructurer: 'Plan de restructuration', payout: 'Politique de dividende', fusion: 'Absorber une filiale', apporter: "Apporter à l'offre", emission: 'Augmentation de capital', mandat: 'Vous faire élire PDG', strategie: 'Croissance, R&D et marketing', compteCourant: 'Avance en compte courant', rumeur: 'Diffuser une rumeur', plainte: 'Plainte antitrust', rembourserCC: 'Rembourser votre compte courant', obligations: 'Émettre des obligations', rachatObl: 'Rembourser par anticipation', demission: 'Démissionner de la présidence',
+  restructurer: 'Plan de restructuration', payout: 'Politique de dividende', fusion: 'Absorber une filiale', apporter: "Apporter à l'offre", emission: 'Augmentation de capital', mandat: 'Vous faire élire PDG', strategie: 'Croissance, R&D et marketing', compteCourant: 'Avance en compte courant', rumeur: 'Diffuser une rumeur', decouvert: 'Vendre à découvert', couvrir: 'Racheter les titres vendus à découvert', plainte: 'Plainte antitrust', rembourserCC: 'Rembourser votre compte courant', obligations: 'Émettre des obligations', rachatObl: 'Rembourser par anticipation', demission: 'Démissionner de la présidence',
 };
 
 export function Fenetre({ s, action, onFermer, onValider }) {
@@ -39,6 +39,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
     if (t === 'vendre') return (c.actionnaires[acteur] || 0) * c.prix;
     if (t === 'acheter' || t === 'opa') return acteur === JOUEUR ? s.joueur.cash + Math.max(0, MARGE_MAX * valeurPortefeuille(s) - s.joueur.marge) : s.societes[acteur].cash;
     if (t === 'emprunter') return capaciteEmprunt(c, s);
+    if (t === 'decouvert') return Math.min(capaciteDecouvert(s), pretable(s, c) * c.prix);
+    if (t === 'couvrir') return (positionsCourtes(s)[c.id]?.titres || 0) * c.prix;
     if (t === 'rumeur' || t === 'compteCourant') return s.joueur.cash + Math.max(0, MARGE_MAX * valeurPortefeuille(s) - s.joueur.marge);
     if (t === 'rembourserCC') return Math.min(c.cash, compteCourant(c));
     if (t === 'emission') return montantMaxEmission(c, modeEm);
@@ -142,6 +144,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
         [`Bilan à ${a.ans} ans pour l'actionnaire`, <span className={net < 0 ? 'alerte-apercu' : ''}>{net >= 0 ? '+' : ''}{fM(net)}</span>],
       ];
     }
+    if (t === 'decouvert' && m > 0) { const a = apercuVenteDecouvert(s, c.id, m); apercu = [['Titres empruntés et vendus', fT(a.titres)], ['Prix moyen', fE(a.prixMoyen)], ['Produit encaissé', fM(a.produit)], ['Cours après', fE(a.prixApres)], ['Prêt des titres', `${fM(a.fraisAnnuels)} par an (${fP(TAUX_PRET_TITRES)} de leur valeur)`], ['Dividendes à reverser', `${fM(a.dividendesAnnuels)} par an au rythme actuel`], ['Exposition courte après', fM(a.expositionApres)]]; }
+    if (t === 'couvrir' && m > 0) { const p = positionsCourtes(s)[c.id]; const a = apercuCouverture(s, c.id, m >= dispo - 0.1 ? p.titres : m / c.prix); apercu = [['Titres rachetés', fT(a.titres)], ['Prix moyen', fE(a.prixMoyen)], ['Coût', fM(a.cout)], ['Cours après', fE(a.prixApres)], ['Résultat réalisé', <span className={a.resultat >= 0 ? '' : 'alerte-apercu'}>{a.resultat >= 0 ? 'gain de ' : 'perte de '}{fM(Math.abs(a.resultat))}</span>], ['Reste à racheter', fT(a.reste)]]; }
     if (t === 'rumeur' && m > 0) { const a = apercuRumeur(s, c.id, m); apercu = [['Baisse immédiate', `${fP(a.choc, 1)} : ${fE(c.prix)} → ${fE(a.prixApres)}`], ['Risque d\'être démasqué', <span className={a.risque > 0.3 ? 'alerte-apercu' : ''}>{fP(a.risque)}{a.recentes ? ` (${a.recentes} rumeur${a.recentes > 1 ? 's' : ''} récente${a.recentes > 1 ? 's' : ''})` : ''}</span>], ['Amende si l\'AMF vous démasque', fM(a.amende)]]; }
     if (t === 'plainte' && plaignant) { const a = apercuPlainte(s, plaignant, c.id); apercu = [['Part de marché de ' + c.nom, fP(a.part, 1)], ['Chances de condamnation', <span className={a.chances < 0.2 ? 'alerte-apercu' : ''}>{fP(a.chances)}</span>], ["Frais d'avocats", `${fM(a.frais)}, payés par ${s.societes[plaignant].nom}`], ['Décision', libelleTour(a.echeance)], ['Si condamnation : amende', fM(a.amende)], ['CA perdu par ' + c.nom, fM(a.caPerdu)], ['Dommages-intérêts pour ' + s.societes[plaignant].nom, fM(a.dommages)], ['CA gagné par ' + s.societes[plaignant].nom, fM(a.caGagne)]]; }
     if (t === 'compteCourant' && m > 0) apercu = [['Trésorerie de ' + c.nom + ' après', fM(c.cash + m)], ['Votre créance après', fM(compteCourant(c) + m)], ['Intérêts annuels', `${fM((compteCourant(c) + m) * tauxCompteCourant(s))} à ${fP(tauxCompteCourant(s), 2)}, taux variable`], ['Votre détention', `${fP(pct(c, JOUEUR), 1)}, inchangée`], ...(m > s.joueur.cash + 1e-9 ? [['Financement', <span className="alerte-apercu">{fM(m - s.joueur.cash)} tirés sur votre marge</span>]] : [])];
@@ -169,6 +173,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
       else if (t === 'emission') n = emettreActions(s, c.id, { montant: m, mode: modeEm, souscrireJoueur: souscrire, investisseur, souscripteur });
       else if (t === 'compteCourant') n = apporterCompteCourant(s, c.id, m);
       else if (t === 'rumeur') n = lancerRumeur(s, c.id, m);
+      else if (t === 'decouvert') n = vendreADecouvert(s, c.id, m);
+      else if (t === 'couvrir') { const p = positionsCourtes(s)[c.id]; n = couvrir(s, c.id, m >= dispo - 0.1 ? p.titres : m / c.prix); }
       else if (t === 'plainte') { if (!plaignant) throw new Error(`Il vous faut contrôler une société d'exploitation du même secteur pour porter plainte.`); n = porterPlainte(s, plaignant, c.id); }
       else if (t === 'rembourserCC') n = rembourserCompteCourant(s, c.id, m);
       else if (t === 'mandat') n = prendreMandat(s, c.id);
@@ -181,7 +187,7 @@ export function Fenetre({ s, action, onFermer, onValider }) {
   };
 
   const filiales = actives(s).filter(d => d.id !== c.id && ctrl.has(d.id));
-  const avecMontant = ['acheter', 'vendre', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'emission', 'obligations', 'compteCourant', 'rembourserCC', 'rumeur'].includes(t);
+  const avecMontant = ['acheter', 'vendre', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'emission', 'obligations', 'compteCourant', 'rembourserCC', 'rumeur', 'decouvert', 'couvrir'].includes(t);
   const souscripteurs = [JOUEUR, ...[...ctrl].filter(id => id !== c.id)];
   return (
     <div className="voile" onClick={onFermer}>
@@ -230,6 +236,8 @@ export function Fenetre({ s, action, onFermer, onValider }) {
               {' '}À l'échéance, la société rembourse sur sa trésorerie puis tire sur la banque ; si cela ne suffit pas, c'est le défaut : les porteurs convertissent le reliquat en actions à la moitié du cours.</div>
           </div>
         )}
+        {t === 'decouvert' && <div className="aide" style={{ marginTop: 0 }}>Vous empruntez des titres {c.nom} à des porteurs du flottant et les vendez aussitôt : vous encaissez le produit, et gagnez si le cours baisse d'ici le rachat. Chaque trimestre, vous payez le prêt des titres ({fP(TAUX_PRET_TITRES)} par an de leur valeur) et reversez au prêteur les dividendes versés. La perte n'a pas de plafond : une OPA sur {c.nom} peut faire bondir le cours. Votre courtier limite l'exposition à votre fortune nette et fait racheter d'office, avec une prime, au-delà de {nf(1).format(APPEL_DECOUVERT)} fois ; les prêteurs rappellent leurs titres si le flottant fond. Au plus {fP(PART_PRETABLE)} du flottant est prêtable. Une faillite solde la position sans rien à racheter.</div>}
+        {t === 'couvrir' && <div className="aide" style={{ marginTop: 0 }}>Vous rachetez au marché les titres empruntés pour les rendre au prêteur ; le rachat fait monter le cours.</div>}
         {t === 'rumeur' && <div className="aide" style={{ marginTop: 0 }}>Des relais font circuler de fausses nouvelles sur {c.nom} : le cours chute aussitôt, d'autant plus que la société est petite, puis remonte vers sa valeur à mesure que rien ne se confirme. Budget minimum {fM(BUDGET_RUMEUR_MIN)}. À la clôture, l'AMF peut vous démasquer : amende de cinq fois le budget plus 3 % de votre fortune, et démenti qui fait remonter le titre. Le risque croît avec l'ampleur de la baisse et avec chaque rumeur des deux dernières années. Les raiders, eux, achèteront peut-être la baisse.</div>}
         {t === 'plainte' && (plaignants.length ? (
           <div className="champ"><label>Société plaignante (concurrente de {c.nom}, sous votre contrôle)</label>

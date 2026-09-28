@@ -20,10 +20,15 @@ export function valeurParticipations(s, holder) {
 }
 export const valeurPortefeuille = (s) => valeurParticipations(s, JOUEUR);
 // Fortune nette : trésorerie, titres au cours et avances en compte courant, moins la dette sur marge
+// et la valeur de rachat des titres vendus à découvert
 export function fortune(s, h = JOUEUR) {
-  let cc = 0;
-  for (const c of actives(s)) cc += c.comptesCourants?.[h] || 0;
-  return compte(s, h).cash - compte(s, h).marge + valeurParticipations(s, h) + cc;
+  let cc = 0, courts = 0;
+  const courtes = compte(s, h).courtes;
+  for (const c of actives(s)) {
+    cc += c.comptesCourants?.[h] || 0;
+    if (courtes?.[c.id]) courts += courtes[c.id].titres * c.prix;   // titres vendus à découvert, à racheter au cours
+  }
+  return compte(s, h).cash - compte(s, h).marge + valeurParticipations(s, h) + cc - courts;
 }
 
 // Détenteurs d'une société, hors public et noyau, qui sont des sociétés

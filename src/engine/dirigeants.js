@@ -8,6 +8,7 @@ import { filiale } from './pilotage.js';
 import { SECT_BY_ID, estHolding } from './secteurs.js';
 import { cloner, crediter } from './transactions.js';
 import { fmtOptions, fmtTitres } from './trimestre.js';
+import { convertirDecouvertsFusion } from './decouvert.js';
 
 // ---------- DIRIGEANTS : MANDATS DE PDG ET RÉMUNÉRATION ----------
 // Le groupe qui contrôle une société peut s'en faire élire PDG et se faire rémunérer :
@@ -197,6 +198,7 @@ export function fusionner(s0, absorbantId, absorbeeId) {
   a.rot = a.actifs > 0 ? (a.ca + a.caPipeline) / a.actifs : 0;
   const synergie = a.secteur === b.secteur && !estHolding(a) && !devientOperationnelle;
   if (synergie) a.margeRef = Math.min(a.margeRef * 1.08, SECT_BY_ID[a.secteur].marge * 1.6);
+  convertirDecouvertsFusion(s, a, b, ratio);
   if (b.ceo) _finMandat(s, b, `absorption par ${a.nom}`);
   b.active = false; b.absorbeePar = a.id;
   s.stats.fusions++;
