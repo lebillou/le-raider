@@ -5,7 +5,7 @@ import { controlees } from './controle.js';
 import { caParEuro, journal } from './creation.js';
 import { capaciteEmprunt, levier, ltv, notation } from './finance.js';
 import { estHolding } from './secteurs.js';
-import { apercuAchat, cloner, crediter } from './transactions.js';
+import { apercuAchat, cloner, crediter, crediterRevenu } from './transactions.js';
 import { fmtTitres } from './trimestre.js';
 
 // ---------- PILOTAGE DES FILIALES ----------
@@ -38,7 +38,7 @@ export function rembourser(s0, id, montant) {
 export function distribuer(s, c, montant) {
   for (const [h, t] of Object.entries(c.actionnaires)) {
     const part = montant * t / c.actions;
-    if (h === JOUEUR || estRaider(s, h)) crediter(s, h, part);
+    if (h === JOUEUR || estRaider(s, h)) crediterRevenu(s, h, part);
     else if (h !== 'public' && h !== 'noyau') s.societes[h].cash += part;
   }
   c.cash -= montant;

@@ -16,7 +16,8 @@ import { compteCourant, tauxCompteCourant } from './comptes.js';
 import { traiterManoeuvres } from './manoeuvres.js';
 import { gererDecouverts, solderDecouvertsFaillite } from './decouvert.js';
 import { publierDeclarations, reintroductions } from './seuils.js';
-import { cloner, crediter } from './transactions.js';
+import { traiterOffresHostiles } from './defense.js';
+import { cloner, crediter, crediterRevenu } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
 // ---------- FIN DE TRIMESTRE ----------
@@ -42,6 +43,8 @@ export function finTrimestre(s0) {
   s.offres = [];
   // Déclarations de franchissement de seuil : vos ordres du trimestre et ceux des raiders à la clôture précédente
   publierDeclarations(s);
+  // Offres hostiles déposées à la clôture précédente sur vos sociétés en contrôle relatif
+  traiterOffresHostiles(s);
   jouerRaiders(s, r);
 
   // 1. Conjoncture et taux
@@ -112,8 +115,8 @@ export function finTrimestre(s0) {
     c.detresse = (rb < 0 && c.cash < 0.02 * c.ca) ? c.detresse + 1 : 0;
   }
   for (const c of actives(s)) c.divRecus = dividendes[c.id] || 0;
-  for (const [h, m] of Object.entries(dividendes)) crediter(s, h, m);
-  for (const [h, m] of Object.entries(interetsCC)) if (h === JOUEUR || s.raiders[h]?.actif) crediter(s, h, m);
+  for (const [h, m] of Object.entries(dividendes)) crediterRevenu(s, h, m);
+  for (const [h, m] of Object.entries(interetsCC)) if (h === JOUEUR || s.raiders[h]?.actif) crediterRevenu(s, h, m);
   for (const [h, m] of Object.entries(remunerations)) {
     if (h !== JOUEUR && !s.raiders[h]?.actif) continue;
     crediter(s, h, m);

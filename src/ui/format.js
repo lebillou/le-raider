@@ -25,4 +25,4 @@ export const signe = (v, d = 1) => (v > 0 ? '+' : '') + nf(d).format(100 * v) + 
 export const fPts = (v, d = 1) => (v > 0 ? '+' : '') + nf(d).format(100 * v) + ' pt';
 
 // Réglages de la partie, pour l'affichage
-export const libelleReglages = (s) => `Difficulté ${difficulte(s).nom.toLowerCase()} · concurrents ${niveauIA(s).nom.toLowerCase()}`;
+export const libelleReglages = (s) => `Difficulté ${difficulte(s).nom.toLowerCase()} · concurrents ${niveauIA(s).nom.toLowerCase()}${s.reglages?.fiscalite ? ' · fiscalité réaliste' : ''}`;

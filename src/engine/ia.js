@@ -2,7 +2,8 @@
 import { actives, capi, flottant, fortune, pct, valeurParticipations } from './acces.js';
 import { gauss } from './alea.js';
 import { JOUEUR, RAIDERS, compte, niveauIA } from './config.js';
-import { controlees, repartitionControle } from './controle.js';
+import { controlees, natureControle, repartitionControle } from './controle.js';
+import { _deposerOffreHostile, attaquable } from './defense.js';
 import { journal } from './creation.js';
 import { MANDATS_MAX, _prendreMandat, _restructurer, mandatsDe, peutRestructurer, tailleRemun } from './dirigeants.js';
 import { capaciteEmprunt, detteTotale, ebitAnnuel } from './finance.js';
@@ -154,7 +155,10 @@ export function jouerRaiders(s, r) {
       let meilleure = null, score = -1;
       const ctlIA = repartitionControle(s);
       for (const c of actives(s)) {
-        if (controleePar(c.id)) continue;
+        // Une société que vous ne tenez qu'en contrôle relatif reste attaquable, sauf par Vauclair
+        const proprio = controleePar(c.id);
+        const hostile = proprio === JOUEUR && rd.style !== 'valeur' && natureControle(s, c.id, ctlIA) === 'relatif' && attaquable(s, c);
+        if (proprio && !hostile) continue;
         const ratio = c.prix / estimation(s, rd.id, c);
         if (ratio > rd.surcoteMax) continue;
         let prime = null;
@@ -168,10 +172,13 @@ export function jouerRaiders(s, r) {
         if (ap.cout > dispoActeur(s, rd.id, rd.margeMax) * 0.9) continue;
         const partJ = partDeclaree(s, c.id);   // les raiders ne voient de vous que vos déclarations de seuil
         const sc = (1.3 - ratio) + (c.actionnaires[rd.id] ? 0.3 : 0) + (rd.style !== 'valeur' && partJ >= 0.10 && partJ < 0.5 ? 0.4 : 0) - prime * 0.5;
-        if (sc > score) { score = sc; meilleure = { id: c.id, prime }; }
+        if (sc > score) { score = sc; meilleure = { id: c.id, prime, hostile }; }
       }
-      if (meilleure) rumeurAvant(meilleure.id, 0.08);
-      if (meilleure && appliquer(() => lancerOPA(s, rd.id, meilleure.id, meilleure.prime))) ctrlR[rd.id] = controlees(s, rd.id);
+      if (meilleure?.hostile) _deposerOffreHostile(s, rd.id, s.societes[meilleure.id], meilleure.prime);
+      else {
+        if (meilleure) rumeurAvant(meilleure.id, 0.08);
+        if (meilleure && appliquer(() => lancerOPA(s, rd.id, meilleure.id, meilleure.prime))) ctrlR[rd.id] = controlees(s, rd.id);
+      }
     }
 
     // 5. Achats de blocs (au niveau normal, un trimestre sur quatre environ, il n'achète rien)

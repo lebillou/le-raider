@@ -1,6 +1,6 @@
 // Outils communs aux ordres : débit, crédit, antitrust, aperçus d'achat et de vente.
 import { actives, flottant, societe, valeurParticipations } from './acces.js';
-import { ANTITRUST, COMMISSION, IMPACT, JOUEUR, MARGE_MAX, compte, estRaider, nomDetenteur } from './config.js';
+import { ANTITRUST, COMMISSION, IMPACT, IMPOT_DIVIDENDES, JOUEUR, fiscaliteActive, MARGE_MAX, compte, estRaider, nomDetenteur } from './config.js';
 import { controlees } from './controle.js';
 import { SECT_BY_ID } from './secteurs.js';
 
@@ -50,6 +50,15 @@ export function crediter(s, acteur, montant) {
     j.marge -= remb; j.cash += montant - remb;
   } else s.societes[acteur].cash += montant;
 }
+
+// Dividendes et intérêts : avec la fiscalité réaliste, vous payez le prélèvement ; une société ou un raider les reçoit brut
+export function crediterRevenu(s, h, montant) {
+  if (h !== JOUEUR || !fiscaliteActive(s)) return crediter(s, h, montant);
+  const impot = montant * IMPOT_DIVIDENDES;
+  crediter(s, h, montant - impot);
+  s.joueur.impotsRevenus = (s.joueur.impotsRevenus || 0) + impot;
+}
+export const netDeRevenu = (s, h, montant) => h === JOUEUR && fiscaliteActive(s) ? montant * (1 - IMPOT_DIVIDENDES) : montant;
 
 // Aperçu d'un achat au marché (sans modifier l'état)
 export function apercuAchat(s, cibleId, montant) {

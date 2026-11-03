@@ -41,6 +41,7 @@ export function Portefeuille({ s, onSel, onCreer }) {
         <div className="ligne"><span>Sociétés contrôlées</span><b>{ctrl.size}</b></div>
         <div className="ligne"><span>Mandats de PDG</span><b>{mandatsDe(s, JOUEUR).length} / {MANDATS_MAX}</b></div>
         <div className="ligne"><span>Rémunérations nettes perçues</span><b>{fMp(s.joueur.remTotale || 0)}</b></div>
+        {(s.joueur.impotsRevenus || 0) > 0.005 && <div className="ligne"><span>Prélèvement sur vos dividendes et intérêts</span><b>{fMp(s.joueur.impotsRevenus)}</b></div>}
       </div>
       {mandatsDe(s, JOUEUR).length > 0 && (<>
         <h3 className="tit">Vos présidences</h3>

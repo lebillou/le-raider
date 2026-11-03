@@ -70,7 +70,7 @@ test('toutes les fenêtres d\'ordre', () => {
   contient(rendre(h(ui.ResumeTrimestre, { r: m.resumeTrimestre(s, apres), onFermer() {}, afficher: true, onAfficher() {} })), 'Clôture du', 'Votre fortune', 'Vous concernant', 'Continuer');
   contient(rendre(h(ui.Sauvegarde, { s, onFermer() {}, onImporter() {} })), 'Télécharger le fichier', 'Importer une partie', 'Charger ce texte');
   contient(rendre(h(ui.Chronologie, { s: apres })), 'Détail des opérations courantes', 'Opérations courantes : ');
-  contient(rendre(h(ui.NouvellePartie, { onFermer() {}, onCreer() {} })), 'Durée de la partie', 'Difficulté', 'Vos concurrents', 'Impitoyables');
+  contient(rendre(h(ui.NouvellePartie, { onFermer() {}, onCreer() {} })), 'Durée de la partie', 'Difficulté', 'Vos concurrents', 'Impitoyables', 'Fiscalité réaliste');
 });
 
 test('bilan de fin de partie', () => {

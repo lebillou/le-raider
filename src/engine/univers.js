@@ -35,7 +35,7 @@ export function genererSociete(r, secId, nom, idx, rangTaille) {
 
 export function nouvellePartie(graine = Math.floor(Math.random() * 1e9), options = {}) {
   const r = mulberry32(graine);
-  const reglages = { difficulte: DIFFICULTES[options.difficulte] ? options.difficulte : 'normal', niveauIA: NIVEAUX_IA[options.niveauIA] ? options.niveauIA : 'normal' };
+  const reglages = { difficulte: DIFFICULTES[options.difficulte] ? options.difficulte : 'normal', niveauIA: NIVEAUX_IA[options.niveauIA] ? options.niveauIA : 'normal', ...(options.fiscalite ? { fiscalite: true } : {}) };
   const dif = DIFFICULTES[reglages.difficulte], ia = NIVEAUX_IA[reglages.niveauIA];
   const s = {
     graine, tour: 0, nbTours: options.nbTours || NB_TOURS, taux: 0.045, conj: 0, conjSecteurs: {},
@@ -102,7 +102,7 @@ export function nouvellePartie(graine = Math.floor(Math.random() * 1e9), options
   }
   publierDeclarations(s);   // état initial des déclarations, sans annonce
   const capitalIA = RAIDERS[0].cash * ia.capital;
-  const reference = reglages.difficulte === 'normal' && reglages.niveauIA === 'normal';
-  journal(s, 'info', `Vous démarrez avec ${s.joueur.cash} M€ et une ligne de crédit sur marge, ${capitalIA === dif.capital ? 'comme chacun de vos trois concurrents' : `face à trois concurrents qui en ont ${capitalIA} chacun`}.${reference ? '' : ` Réglages : ${dif.libelle}, concurrents ${ia.nom.toLowerCase()}.`} ${s.nbTours / 4} ans pour bâtir un empire.`, 'marche');
+  const reference = reglages.difficulte === 'normal' && reglages.niveauIA === 'normal' && !reglages.fiscalite;
+  journal(s, 'info', `Vous démarrez avec ${s.joueur.cash} M€ et une ligne de crédit sur marge, ${capitalIA === dif.capital ? 'comme chacun de vos trois concurrents' : `face à trois concurrents qui en ont ${capitalIA} chacun`}.${reference ? '' : ` Réglages : ${dif.libelle}, concurrents ${ia.nom.toLowerCase()}${reglages.fiscalite ? ', fiscalité réaliste' : ''}.`} ${s.nbTours / 4} ans pour bâtir un empire.`, 'marche');
   return s;
 }

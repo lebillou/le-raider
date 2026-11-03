@@ -6,13 +6,14 @@ import { interetsComptesCourants, totalComptesCourants } from './comptes.js';
 import { couponsAnnuels, detteTotale, ebitAnnuel, ebitNormatif, tauxEmprunt } from './finance.js';
 import { DECOTE_HOLDING, SECT_BY_ID, estHolding } from './secteurs.js';
 import { facteurCroissance } from './strategie.js';
+import { facteurDefense } from './defense.js';
 
 // ---------- VALORISATION ----------
 export function multiple(s, c) {
   const sec = SECT_BY_ID[c.secteur];
   const conj = clamp(sec.beta * s.conj + (s.conjSecteurs[c.secteur] || 0), -1.2, 1.2);
   const fTaux = clamp((0.045 + 0.01) / (s.taux + 0.01), 0.6, 1.6);
-  return sec.mult * (1 + 0.4 * conj) * Math.pow(fTaux, 0.5) * facteurCroissance(c);
+  return sec.mult * (1 + 0.4 * conj) * Math.pow(fTaux, 0.5) * facteurCroissance(c) * facteurDefense(c);
 }
 // Part du chiffre d'affaires en construction que le marché valorise déjà
 export const ANTICIPATION = 0.75;

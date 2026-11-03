@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { facteurCroissance, RAIDER_BY_ID, apercuRetrait, positionsCourtes, procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, coutRestructuration, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
+import { offreHostile, facteurCroissance, RAIDER_BY_ID, apercuRetrait, positionsCourtes, procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, coutRestructuration, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
 import { Spark } from './Graphiques.jsx';
 import { DetailMandat } from './Portefeuille.jsx';
 import { classeVar, fE, fM, fP, fPts, fT, nf, signe } from './format.js';
@@ -49,7 +49,7 @@ export function Societe({ s, id, onAction, onSel }) {
   const pe = parametresEffort(c), dg = croissanceDe(c), latente = c.margeLatente || 0;
   return (
     <div>
-      <h2 className="rs">{c.nom}{estCtrl && <span className="ctrl" style={{ fontSize: 12, verticalAlign: 'middle', marginLeft: 8 }}>sous votre contrôle</span>}{c.creePar && <span className="cree">créée en {libelleTour(c.creeAu)}</span>}{c.nonCotee && <span className="cree">hors cote</span>}</h2>
+      <h2 className="rs">{c.nom}{estCtrl && <span className="ctrl" style={{ fontSize: 12, verticalAlign: 'middle', marginLeft: 8 }}>sous votre contrôle</span>}{c.creePar && <span className="cree">créée en {libelleTour(c.creeAu)}</span>}{c.nonCotee && <span className="cree">hors cote</span>}{c.defense && <span className="cree">bons de défense</span>}{estCtrl && natureControle(s, c.id, ctl) === 'relatif' && <span className="cree">contrôle relatif</span>}</h2>
       <div className="sous">{sec.nom} · notation {notation(c, s)} · {fE(c.prix)} <span className={classeVar(varAn)}>({signe(varAn)} sur un an)</span> <Spark hist={c.hist} w={90} h={20} />{c.ceo && <> · PDG : {c.ceo.h === JOUEUR ? 'vous' : nomDetenteur(s, c.ceo.h)}</>}</div>
       {hold ? (
       <div className="grille">
@@ -99,6 +99,9 @@ export function Societe({ s, id, onAction, onSel }) {
       <Actionnaires s={s} c={c} ctrl={ctrl} />
       {det > 0.0005 && <div className="sous" style={{ marginTop: 6 }}>Votre détention effective, directe et via vos sociétés : {fP(det, 1)}.</div>}
       <div className="sous" style={{ marginTop: 4 }}>{ctlG ? <>Contrôlée par <b>{nomGroupe(s, ctlG)}</b> ({natureControle(s, c.id, ctl) === 'majorite' ? 'majorité absolue' : 'majorité relative : 25 % au moins, sans autre bloc de 25 %'}).</> : <>Aucun actionnaire ne la contrôle.</>}</div>
+      {offreHostile(s, c.id) && (() => { const o = offreHostile(s, c.id); return (
+        <div className="offre" style={{ borderColor: 'var(--rouge)' }}><b className="baisse">Offre hostile</b> de {RAIDER_BY_ID[o.acteur].nom} à {fE(o.prixOffre)} par titre (cours {fE(c.prix)}), dénouée à la prochaine clôture. Vous n'avez que le contrôle relatif de {c.nom}. Pour la faire échouer : portez votre groupe à 50 % (lancez une offre sur votre propre société, ou une augmentation de capital réservée), adoptez des bons de défense, ou faites monter le cours au-dessus du prix offert. Sinon, elle aboutira si elle donne le contrôle à {RAIDER_BY_ID[o.acteur].nom}.</div>
+      ); })()}
       {offre && !s.fini && c.actionnaires[JOUEUR] > 0 && (
         <div className="offre">Offre en cours de {nomDetenteur(s, offre.acteur)} à {fE(offre.prixOffre)} par titre (cours {fE(c.prix)}), valable jusqu'à la clôture du trimestre. Vos {fT(c.actionnaires[JOUEUR])} titres vaudraient {fM(c.actionnaires[JOUEUR] * offre.prixOffre)}.
           <div className="actions" style={{ margin: '8px 0 0' }}><button className="plein" onClick={() => onAction({ type: 'apporter', cible: c.id })}>Apporter vos titres à l'offre</button></div>
@@ -159,6 +162,7 @@ export function Societe({ s, id, onAction, onSel }) {
           <button onClick={() => onAction({ type: 'emission', cible: c.id })} disabled={c.derniereEmission !== undefined && s.tour - c.derniereEmission < DELAI_EMISSION}>Augmentation de capital</button>
           <button onClick={() => onAction({ type: 'obligations', cible: c.id })} disabled={c.derniereObligation === s.tour}>Émettre des obligations</button>
           {!c.ceo && <button onClick={() => onAction({ type: 'mandat', cible: c.id })}>Vous faire élire PDG</button>}
+          {!hold && (c.defense ? <button onClick={() => onAction({ type: 'retirerBons', cible: c.id })}>Retirer les bons de défense</button> : <button onClick={() => onAction({ type: 'bons', cible: c.id })}>Bons de défense</button>)}
           {apercuRetrait(s, c.id, ctl).possible && <button onClick={() => onAction({ type: 'retrait', cible: c.id })}>Retrait obligatoire</button>}
           <button onClick={() => onAction({ type: 'fusion', cible: c.id })} disabled={!filiales.length}>Absorber une filiale</button>
         </div>

@@ -33,7 +33,7 @@ export function Creation({ s, onFermer, onValider }) {
         <div className="champ">
           <div className="options deux">{[['operationnelle', "Société d'exploitation"], ['holding', 'Holding']].map(([v, l]) => <button key={v} className={type === v ? 'actif' : ''} onClick={() => { setType(v); setErreur(null); }}>{l}</button>)}</div>
           <div className="aide" style={{ marginTop: 4 }}>{type === 'holding'
-            ? "Une holding ne produit rien : elle détient des participations, emprunte sur leur valeur et peut lancer des offres payées en ses propres actions."
+            ? "Une holding ne produit rien : elle détient des participations, emprunte sur leur valeur et peut lancer des offres payées en ses propres actions. Elle reçoit les dividendes de ses filiales sans prélèvement (régime mère-fille) : avec la fiscalité réaliste, les vôtres, perçus en personne, sont prélevés à 30 %."
             : "Le capital finance des actifs industriels ; l'activité monte en charge sur deux ans. Le marché en valorise une partie tout de suite, le reste à mesure qu'elle se révèle."}</div>
         </div>
         {type === 'operationnelle' && brancheEff > 0 && <div className="aide">Secteur : {sec.nom}, celui de l'activité apportée par {fondatrice.nom}.</div>}

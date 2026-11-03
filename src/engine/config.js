@@ -14,6 +14,12 @@ export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const JOUEUR = 'J';
 export const NB_TOURS = 80;           // 20 ans, pas trimestriel
 export const IMPOT = 0.25;
+// Option « fiscalité réaliste », choisie au lancement : prélèvement forfaitaire sur les dividendes et intérêts
+// que vous percevez en personne. Une société qui reçoit des dividendes de ses participations n'est pas imposée
+// (régime mère-fille) : vos holdings non plus, ni les raiders, qui sont des groupes de sociétés. Les plus-values
+// de cession ne sont pas imposées. Désactivée par défaut : elle coûte ~40 % à la meilleure stratégie connue.
+export const IMPOT_DIVIDENDES = 0.30;
+export const fiscaliteActive = (s) => !!s.reglages?.fiscalite;
 export const COMMISSION = 0.002;      // frais de courtage
 export const FRAIS_OPA = 0.01;        // banques conseil
 export const IMPACT = 1.5;            // acheter 10 % du capital déplace le prix de 15 %
