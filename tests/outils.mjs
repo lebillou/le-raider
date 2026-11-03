@@ -16,7 +16,7 @@ export function cibleAbordable(s, { prime = 0.3, budget = 24, filtre = () => tru
   return m.actives(s).sort((a, b) => m.capi(a) - m.capi(b)).find(c => {
     if (!filtre(c)) return false;
     const ap = m.apercuOPA(s, J, c.id, prime);
-    return ap.prendControle && ap.cout <= budget;
+    return ap.prendControle && !ap.surenchere && ap.cout <= budget;
   });
 }
 

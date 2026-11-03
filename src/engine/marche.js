@@ -6,6 +6,7 @@ import { journal } from './creation.js';
 import { apercuAchat, apercuVente, cloner, crediter, debiter, nomActeur, proprietaire, verifierActeur, verifierAntitrust } from './transactions.js';
 import { fmtTitres } from './trimestre.js';
 import { messageOffreObligatoire, plafondAvantOffre } from './seuils.js';
+import { dispoActeur, estimation } from './ia.js';
 
 // ---------- ACTIONS DU JOUEUR ----------
 export function acheter(s0, acteur, cibleId, montant) {
@@ -62,7 +63,39 @@ export function groupeActeur(s, acteur, ctl) {
   if (!s.societes[acteur]) return acteur;
   return ctl[acteur] || acteur;
 }
-export function apercuOPA(s, acteur, cibleId, prime, numeraire = 1, ctl = null) {
+// ---------- SURENCHÈRES ----------
+// Une offre lancée peut susciter une contre-offre d'un raider qui estime la cible nettement plus chère que le
+// prix offert, en a les moyens et prendrait le contrôle à ce prix : il surenchérit de 5 % et l'emporte, l'offre
+// initiale devient caduque et son auteur perd ses frais de conseil. Pour l'éviter, offrir assez pour décourager.
+// Vauclair, investisseur de valeur, ne se bat pas aux enchères.
+export const SURCOTE_SURENCHERE = 0.05;     // la contre-offre dépasse de 5 % le prix offert
+export const MARGE_SURENCHERE = 0.08;       // il faut estimer la cible au moins 8 % au-dessus du prix offert
+export const FRAIS_OFFRE_CADUQUE = 0.005;   // frais perdus par l'auteur d'une offre battue, sur sa valeur
+export function surencherisseur(s, acteur, cibleId, prixOffre, ctl) {
+  const c = s.societes[cibleId];
+  const auteur = proprietaire(s, acteur);
+  let meilleur = null;
+  for (const rd of RAIDERS) {
+    if (rd.id === auteur || rd.style === 'valeur' || !s.raiders?.[rd.id]?.actif) continue;
+    const est = estimation(s, rd.id, c);
+    if (est < prixOffre * (1 + MARGE_SURENCHERE)) continue;
+    const prime = prixOffre * (1 + SURCOTE_SURENCHERE) / c.prix - 1;
+    if (prime > rd.primeMax + 0.25) continue;                       // au-delà, même un raider convaincu renonce
+    const ap = apercuOPA(s, rd.id, cibleId, prime, 1, ctl, true);
+    if (!ap.prendControle || ap.cout > 0.9 * dispoActeur(s, rd.id, rd.margeMax)) continue;
+    if (!meilleur || est > meilleur.estimation) meilleur = { rid: rd.id, nom: rd.nom, prime, prixOffre: ap.prixOffre, estimation: est };
+  }
+  return meilleur;
+}
+// Prime à partir de laquelle aucun raider ne surenchérit plus (au jugé de ses estimations du moment)
+export function primeDissuasive(s, acteur, cibleId) {
+  const c = s.societes[cibleId], auteur = proprietaire(s, acteur);
+  let p = 0;
+  for (const rd of RAIDERS) if (rd.id !== auteur && rd.style !== 'valeur' && s.raiders?.[rd.id]?.actif) p = Math.max(p, estimation(s, rd.id, c) / (1 + MARGE_SURENCHERE) / c.prix - 1);
+  return p + 0.005;
+}
+
+export function apercuOPA(s, acteur, cibleId, prime, numeraire = 1, ctl = null, sansSurenchere = false) {
   const c = societe(s, cibleId);
   const prixOffre = c.prix * (1 + prime);
   const primeEff = prime - DECOTE_PAPIER * (1 - numeraire);
@@ -103,10 +136,11 @@ export function apercuOPA(s, acteur, cibleId, prime, numeraire = 1, ctl = null) 
     res.controleInitiateurApres = simulerControle(s, acteur, dI, res.titresEmis, ctl);
     res.garderControleInitiateur = !ctl[acteur] || res.controleInitiateurApres === ctl[acteur];
   }
+  res.surenchere = !sansSurenchere && titres > 1e-6 ? surencherisseur(s, acteur, cibleId, prixOffre, ctl) : null;
   return res;
 }
 
-export function lancerOPA(s0, acteur, cibleId, prime, numeraire = 1) {
+export function lancerOPA(s0, acteur, cibleId, prime, numeraire = 1, options = {}) {
   if (!(prime >= 0) || prime > 1.5) throw new Error('Prime invalide (0 à 150 %)');
   if (!(numeraire >= 0 && numeraire <= 1)) throw new Error('Part en numéraire invalide (0 à 100 %)');
   const s = cloner(s0);
@@ -118,7 +152,33 @@ export function lancerOPA(s0, acteur, cibleId, prime, numeraire = 1) {
   if (numeraire < 1 && !s.societes[acteur]) throw new Error('Pour payer en titres, lancez l\'offre au nom d\'une société que vous contrôlez : ce sont ses actions nouvelles qui rémunèrent les apporteurs.');
   if (acteur !== JOUEUR && !estRaider(s, acteur) && controleursChaine(s, acteur).has(cibleId)) throw new Error(`Autocontrôle interdit : ${c.nom} contrôle ${s.societes[acteur].nom}.`);
   if (numeraire < 1 && (s.societes[acteur].actionnaires[cibleId] || 0) > 0) throw new Error(`${c.nom} détient des titres ${s.societes[acteur].nom} : une offre d'échange créerait de l'autocontrôle. Faites-lui céder cette participation d'abord.`);
-  const ap = apercuOPA(s, acteur, cibleId, prime, numeraire);
+  const ap = apercuOPA(s, acteur, cibleId, prime, numeraire, null, options.sansSurenchere);
+  if (ap.titres <= 1e-6) throw new Error('Aucun titre ne serait apporté à cette offre.');
+  if (ap.surenchere) {
+    // La contre-offre est essayée sur une copie : si elle échoue (antitrust, trésorerie), l'offre initiale suit son cours
+    let t = cloner(s);
+    try {
+      const sr = ap.surenchere;
+      const apC = apercuOPA(t, sr.rid, cibleId, sr.prime, 1, null, true);
+      apC.contreOffre = true;
+      _executerOPA(t, sr.rid, cibleId, sr.prime, 1, apC);
+    } catch (e) { t = null; }
+    if (t) {
+      const frais = FRAIS_OFFRE_CADUQUE * ap.valeur;
+      if (t.societes[acteur]) t.societes[acteur].cash -= frais;
+      else { const cp = compte(t, acteur); cp.cash -= frais; if (cp.cash < 0) { cp.marge += -cp.cash; cp.cash = 0; } }
+      journal(t, estRaider(t, acteur) ? 'concurrent' : 'opa', `${nature} de ${nomActeur(t, acteur)} sur ${c.nom} à ${ap.prixOffre.toFixed(2)} € (+${Math.round(prime * 100)} %) battue : ${ap.surenchere.nom} surenchérit à ${ap.surenchere.prixOffre.toFixed(2)} € ; l'offre devient caduque, ${frais.toFixed(1)} M€ de frais perdus.`, proprietaire(t, acteur));
+      return t;
+    }
+  }
+  _executerOPA(s, acteur, cibleId, prime, numeraire, ap);
+  return s;
+}
+// Exécution d'une offre déjà validée, sur l'état fourni (sans clonage)
+function _executerOPA(s, acteur, cibleId, prime, numeraire, ap) {
+  const c = s.societes[cibleId];
+  const nature = natureOffre(numeraire);
+  const ctrlAvant = controlees(s, proprietaire(s, acteur));
   if (ap.titres <= 1e-6) throw new Error('Aucun titre ne serait apporté à cette offre.');
   // L'offre est garantie : il faut pouvoir régler la part en espèces de tous les titres apportés
   debiter(s, acteur, ap.cout, ap.titres * ap.prixOffre);
@@ -139,13 +199,13 @@ export function lancerOPA(s0, acteur, cibleId, prime, numeraire = 1) {
   c.actionnaires[acteur] = (c.actionnaires[acteur] || 0) + ap.titres;
   // Le marché intègre l'offre : le cours converge vers le prix offert, pondéré par la part restée cotée
   c.prix = c.prix * (1 + prime * 0.5);
-  verifierAntitrust(s, controlees(s0, proprietaire(s, acteur)), proprietaire(s, acteur));
+  verifierAntitrust(s, ctrlAvant, proprietaire(s, acteur));
   // Un raider qui vise une société où vous détenez des titres vous laisse la décision d'apporter
   if (estRaider(s, acteur) && c.actionnaires[JOUEUR] > 0) s.offres.push({ acteur, cible: c.id, prixOffre: ap.prixOffre, tour: s.tour });
   s.stats.opa++;
   const apportsR = Object.keys(ap.apportRaiders).map(r => nomDetenteur(s, r)).join(', ');
   const reglement = numeraire >= 1 - 1e-9 ? '' : ` (${numeraire > 1e-9 ? `dont ${(ap.valeur * numeraire).toFixed(1)} M€ en numéraire, ` : ''}${fmtTitres(ap.titresEmis)} ${initiateur.nom} émis, parité ${ap.parite.toFixed(3)})`;
-  journal(s, estRaider(s, acteur) ? 'concurrent' : 'opa', `${nature} de ${nomActeur(s, acteur)} sur ${c.nom} à ${ap.prixOffre.toFixed(2)} € (+${Math.round(prime * 100)} %) : ${fmtTitres(ap.titres)} apportés${apportsR ? ` (dont ${apportsR})` : ''}, ${Math.round(100 * pct(c, acteur))} % du capital, ${ap.valeur.toFixed(1)} M€${reglement}.${estRaider(s, acteur) && c.actionnaires[JOUEUR] > 0 ? ' Vous pouvez apporter vos titres à ce prix jusqu\'à la clôture du trimestre.' : ''}`, proprietaire(s, acteur));
+  journal(s, estRaider(s, acteur) ? 'concurrent' : 'opa', `${nature} de ${nomActeur(s, acteur)} sur ${c.nom} à ${ap.prixOffre.toFixed(2)} € (+${Math.round(prime * 100)} %)${ap.contreOffre ? ', en surenchère' : ''} : ${fmtTitres(ap.titres)} apportés${apportsR ? ` (dont ${apportsR})` : ''}, ${Math.round(100 * pct(c, acteur))} % du capital, ${ap.valeur.toFixed(1)} M€${reglement}.${estRaider(s, acteur) && c.actionnaires[JOUEUR] > 0 ? ' Vous pouvez apporter vos titres à ce prix jusqu\'à la clôture du trimestre.' : ''}`, proprietaire(s, acteur));
   return s;
 }
 

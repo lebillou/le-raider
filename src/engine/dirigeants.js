@@ -120,12 +120,20 @@ export function gererMandats(s, ctl) {
   }
 }
 
-export const COUT_RESTRUCTURATION = 0.04;   // en fraction du CA
-export const DELAI_RESTRUCTURATION = 8;     // trimestres entre deux plans
+// Un plan relève la marge cible de 15 % (dans la limite de 1,6 fois la marge du secteur). Son coût est
+// proportionné à ce qu'il rapporte : la marge gagnée, capitalisée au multiple du secteur, vaut deux fois
+// la dépense, quel que soit le secteur ; au moins 0,5 % du CA de frais de conseil.
+export const GAIN_RESTRUCTURATION = 1.15;
+export const RENDEMENT_RESTRUCTURATION = 2;
+export const COUT_MIN_RESTRUCTURATION = 0.005;  // en fraction du CA
+export const DELAI_RESTRUCTURATION = 8;         // trimestres entre deux plans
+export const margeApresRestructuration = (c) => Math.min(c.margeRef * GAIN_RESTRUCTURATION, SECT_BY_ID[c.secteur].marge * 1.6);
+export const coutRestructuration = (c) => Math.max(COUT_MIN_RESTRUCTURATION * c.ca,
+  Math.max(0, margeApresRestructuration(c) - c.margeRef) * c.ca * SECT_BY_ID[c.secteur].mult / RENDEMENT_RESTRUCTURATION);
 export function restructurer(s0, id) {
   const s = cloner(s0); const c = filiale(s, id);
   if (estHolding(c)) throw new Error(`${c.nom} est une holding : rien à restructurer.`);
-  const cout = COUT_RESTRUCTURATION * c.ca;
+  const cout = coutRestructuration(c);
   if (cout > c.cash + 1e-9) throw new Error(`Un plan de restructuration coûte ${cout.toFixed(1)} M€ ; ${c.nom} n'a que ${c.cash.toFixed(1)} M€.`);
   if (c.derniereRestructuration !== undefined && s.tour - c.derniereRestructuration < DELAI_RESTRUCTURATION) throw new Error(`${c.nom} sort à peine d'un plan : il faut attendre ${DELAI_RESTRUCTURATION - (s.tour - c.derniereRestructuration)} trimestres.`);
   const plafond = SECT_BY_ID[c.secteur].marge * 1.6;
@@ -134,12 +142,12 @@ export function restructurer(s0, id) {
   return s;
 }
 export function peutRestructurer(s, c) {
-  return !estHolding(c) && COUT_RESTRUCTURATION * c.ca <= c.cash && (c.derniereRestructuration === undefined || s.tour - c.derniereRestructuration >= DELAI_RESTRUCTURATION) && c.margeRef < SECT_BY_ID[c.secteur].marge * 1.6 - 1e-9;
+  return !estHolding(c) && coutRestructuration(c) <= c.cash && (c.derniereRestructuration === undefined || s.tour - c.derniereRestructuration >= DELAI_RESTRUCTURATION) && c.margeRef < SECT_BY_ID[c.secteur].marge * 1.6 - 1e-9;
 }
 export function _restructurer(s, c, type, acteur = JOUEUR) {
-  const cout = COUT_RESTRUCTURATION * c.ca;
+  const cout = coutRestructuration(c);
   c.cash -= cout;
-  c.margeRef = Math.min(c.margeRef * 1.15, SECT_BY_ID[c.secteur].marge * 1.6);
+  c.margeRef = margeApresRestructuration(c);
   c.derniereRestructuration = s.tour;
   journal(s, type, `${c.nom} lance un plan de restructuration (${cout.toFixed(1)} M€) : marge cible portée à ${(100 * c.margeRef).toFixed(1)} %.`, acteur);
 }

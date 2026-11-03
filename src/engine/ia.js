@@ -132,11 +132,11 @@ export function jouerRaiders(s, r) {
         let prime = null;
         for (const p of [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]) {
           if (p > rd.primeMax + 1e-9) break;
-          const ap = apercuOPA(s, rd.id, c.id, p, 1, ctlIA);
+          const ap = apercuOPA(s, rd.id, c.id, p, 1, ctlIA, true);
           if (ap.prendControle) { prime = p; break; }
         }
         if (prime === null) continue;
-        const ap = apercuOPA(s, rd.id, c.id, prime, 1, ctlIA);
+        const ap = apercuOPA(s, rd.id, c.id, prime, 1, ctlIA, true);
         if (ap.cout > dispoActeur(s, rd.id, rd.margeMax) * 0.9) continue;
         const partJ = partDeclaree(s, c.id);   // les raiders ne voient de vous que vos déclarations de seuil
         const sc = (1.3 - ratio) + (c.actionnaires[rd.id] ? 0.3 : 0) + (rd.style !== 'valeur' && partJ >= 0.10 && partJ < 0.5 ? 0.4 : 0) - prime * 0.5;

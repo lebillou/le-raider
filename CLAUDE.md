@@ -74,10 +74,11 @@ Pour chaque société active : la somme des détentions égale le nombre d'actio
 ## Règles du jeu, telles qu'implémentées
 
 - **Contrôle** (`controle.js`) : un groupe contrôle une société avec 50 % des votes, ou 25 % si aucun autre bloc n'atteint 25 %. Un groupe réunit vous, un raider, une famille (le noyau dur) ou une société que personne ne contrôle, avec tout ce qu'il contrôle en cascade. Les titres détenus sur ses propres contrôleurs (autocontrôle) ne votent pas. `repartitionControle(s)` calcule tout par itération ; dans une boucle, le calculer une fois et passer `ctl` (paramètre optionnel de `apercuOPA`, `controlees`, `simulerControle`).
-- **Offres** : le flottant apporte selon une logistique de la prime ; le noyau dur n'apporte qu'à partir de 30 % ; chaque raider a son seuil. Paiement en titres (OPE ou offre mixte) seulement au nom d'une société contrôlée, avec émission de ses actions au cours ; le papier compte 5 points de prime de moins que les espèces. Antitrust au-delà de 50 % du CA d'un secteur.
+- **Offres** : le flottant apporte selon une logistique de la prime ; le noyau dur n'apporte qu'à partir de 30 % ; chaque raider a son seuil. Paiement en titres (OPE ou offre mixte) seulement au nom d'une société contrôlée, avec émission de ses actions au cours ; le papier compte 5 points de prime de moins que les espèces. Antitrust au-delà de 50 % du CA d'un secteur. Surenchère (`surencherisseur`) : à l'exécution d'une offre, un raider autre que Vauclair qui estime la cible au moins 8 % au-dessus du prix offert, qui prendrait le contrôle à 5 % au-dessus et en a les moyens, surenchérit et l'emporte ; l'offre initiale devient caduque, son auteur perd 0,5 % de sa valeur en frais. `apercuOPA` l'annonce (`surenchere`, sauf avec `sansSurenchere`, que l'IA passe dans ses balayages pour rester rapide) et `primeDissuasive` donne la prime qui décourage tous les rivaux.
 - **Marge** : dette ≤ 50 % du portefeuille ; appel de marge au-delà de 60 %, blocs cédés à 15 % de décote.
 - **Croissance** : investir ou créer une société ajoute un CA « en construction » qui entre en service en deux ans environ ; 1 € investi vaut environ 1,15 € à maturité quel que soit le secteur (`RENDEMENT_INVEST`), et le marché en valorise 75 % tout de suite (`ANTICIPATION`).
 - **Stratégie** (`strategie.js`) : qui contrôle une société d'exploitation fixe sa croissance visée (−4 à +8 points par an au-delà du secteur) et son budget de R&D (énergie, industrie, technologie, santé) ou de marketing (les autres), de 0 au budget habituel du secteur + 8 points de CA. Le budget habituel est compris dans la marge de référence : seul l'écart est une charge. Croître coûte de la marge, rentable à petite dose, ruineux au-delà (`RENDEMENT_CROISSANCE`, `SATURATION_CROISSANCE`) ; l'effort relève la marge cible avec retard (R&D ≈ 3 ans, marketing ≈ 1 an), selon l'efficacité du secteur et en saturant vers le plafond de 1,6 × la marge sectorielle ; couper érode la marge cible. `ebitAnnuel` est l'EBIT publié (après ces charges : levier, notation, capacité d'emprunt, bonus du PDG) ; `prixCible` capitalise `ebitNormatif` (avant ces charges). Lemarchand coupe la R&D et la croissance de ses filiales ; Vauclair investit là où l'efficacité atteint 1,2.
+- **Restructuration** (`dirigeants.js`) : marge cible × 1,15, dans la limite de 1,6 × la marge du secteur, au plus tous les 8 trimestres ; coût proportionné au gain (`coutRestructuration`) : la marge gagnée, capitalisée au multiple du secteur, vaut 2 fois la dépense (`RENDEMENT_RESTRUCTURATION`), 0,5 % du CA au moins. Un plan coûte donc bien plus cher dans la technologie (multiple 16) que dans la distribution.
 - **Holdings** : valorisées à leur actif net moins 10 % ; empruntent jusqu'à 50 % de la valeur de leurs participations ; covenant bancaire à 75 % de LTV.
 - **Création et apports en nature** (`creation.js`) : le fondateur (vous ou une société contrôlée) apporte du numéraire, des titres cotés qu'il détient (au cours, hors marché) et, s'il s'agit d'une société d'exploitation, jusqu'à 50 % de son activité (CA, CA en construction, actifs, à la valeur d'entreprise ; la dette reste chez la fondatrice). Capital minimum apports compris ; frais de 0,5 % sur la valeur en nature, couverts par le numéraire. Actions à 10 € de nominal sur le capital total. Le courtier refuse un apport de titres qui porterait la marge au-delà de 50 % du portefeuille (décote de holding).
 - **Augmentations de capital** : au plus tous les 4 trimestres, jamais plus du double des actions, 3 % de frais. Droit préférentiel neutre en valeur ; placement privé soumis à l'estimation du raider ; émission réservée à vous ou à une société que vous contrôlez, au cours sans décote, 1 % de frais (`FRAIS_RESERVEE`).
@@ -98,16 +99,16 @@ Pour chaque société active : la somme des détentions égale le nombre d'actio
 | Acteur | Médiane (M€) | Remarque |
 |---|---|---|
 | Indice (acheter tout, ne rien faire) | ~140 | ≈ 6 % par an hors dividendes |
-| Value (PER) | ~370–480 | |
-| Bâtisseur (société tech + réinvestissement) | ~240 | |
-| Bâtisseur + R&D (+1 point de croissance, budget habituel + 3 points) | ~275 | |
-| Raider joueur | ~450–850 | la règle des 25 % rend le raid dominant |
-| Raider + haut rendement | ~400–1000 | médiane plus haute, pire cas divisé par deux, défauts fréquents |
-| Vauclair / Lemarchand / Meridian (IA) | ~320–440 / ~700–950 / ~570–1000 | Lemarchand renforcé par ses procès antitrust |
+| Value (PER) | ~350–480 | |
+| Bâtisseur (société tech + réinvestissement) | ~240–270 | |
+| Bâtisseur + R&D (+1 point de croissance, budget habituel + 3 points) | ~275–315 | |
+| Raider joueur | ~430–600 | au niveau de la stratégie Value depuis le recalibrage de la restructuration (36 graines : ~450) |
+| Raider + haut rendement | ~280–700 | dispersion très forte, défauts fréquents (36 graines : ~475) |
+| Vauclair / Lemarchand / Meridian (IA) | ~320–440 / ~700–1250 / ~570–1000 | Lemarchand très dispersé (36 graines : ~740) |
 
 Autres niveaux (`npm run equilibrage -- --ia expert --seulement Indice,Raider`), médianes du raider joueur puis de Vauclair / Lemarchand / Meridian : IA débutantes ~710, ~200 / ~150 / ~240 ; expertes ~440, ~550 / ~1300 / ~1750 ; impitoyables ~370, ~950 / ~2200 / ~2650. Difficulté facile : indice ~160, raider ~1240 ; difficile : indice ~95, raider ~310.
 
-Sur 12 graines, une médiane de raider varie de ±20 à 40 % au moindre changement de trajectoire de l'IA : avant de conclure, comparer les deux variantes sur une trentaine de graines. Un changement qui déplace une médiane de plus de 30 % doit être expliqué dans le message de commit.
+Sur 12 graines, une médiane de raider varie de ±20 à 40 % au moindre changement de trajectoire de l'IA : avant de conclure, comparer les deux variantes sur une trentaine de graines (`npm run equilibrage -- --graines 36 --seulement Indice,Raider`), version précédente comprise. Un changement qui déplace une médiane de plus de 30 % doit être expliqué dans le message de commit.
 
 ## Pièges connus
 
