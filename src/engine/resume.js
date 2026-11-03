@@ -7,9 +7,10 @@ import { resultatNetAnnuel } from './valorisation.js';
 
 // ---------- ROUTINE DES RAIDERS ----------
 // Opérations courantes d'un raider : utiles à l'historique, sans intérêt au fil de la partie.
-const ROUTINE = /verse un dividende exceptionnel|emprunte [\d.]+ M€|revoit sa stratégie|lance un plan de restructuration|^Revue annuelle de la direction|est élu PDG|lève [\d.]+ [kM] options|fixe son taux de distribution|options .* expirent sans valeur| achète [\d.]+ [kM] titres | cède [\d.]+ [kM] titres /;
+const ROUTINE = /verse un dividende exceptionnel|emprunte [\d.]+ M€|revoit sa stratégie|lance un plan de restructuration|^Revue annuelle de la direction|est élu PDG|lève [\d.]+ [kM] options|fixe son taux de distribution| vend à découvert |vendus à découvert, à |options .* expirent sans valeur| achète [\d.]+ [kM] titres | cède [\d.]+ [kM] titres /;
 // Nature d'une opération courante, pour les regrouper : [singulier, pluriel]
 const NATURES = [
+  [/découvert/, ['opération à découvert', 'opérations à découvert']],
   [/ achète /, ['achat', 'achats']], [/ cède /, ['vente', 'ventes']], [/dividende exceptionnel/, ['dividende exceptionnel', 'dividendes exceptionnels']],
   [/emprunte/, ['emprunt', 'emprunts']], [/restructuration/, ['restructuration', 'restructurations']], [/revoit sa stratégie/, ['révision de stratégie', 'révisions de stratégie']],
   [/taux de distribution/, ['politique de dividende', 'politiques de dividende']], [/options|PDG|direction/, ['opération de mandat', 'opérations de mandat']],

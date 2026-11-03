@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { RAIDER_BY_ID, apercuRetrait, positionsCourtes, procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, coutRestructuration, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
+import { facteurCroissance, RAIDER_BY_ID, apercuRetrait, positionsCourtes, procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, coutRestructuration, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
 import { Spark } from './Graphiques.jsx';
 import { DetailMandat } from './Portefeuille.jsx';
 import { classeVar, fE, fM, fP, fPts, fT, nf, signe } from './format.js';
@@ -75,7 +75,7 @@ export function Societe({ s, id, onAction, onSel }) {
         {c.caPipeline > 0.01 && <div className="ligne"><span>CA en construction</span><b>{fM(c.caPipeline)} ({fP(charge)} en service)</b></div>}
         <div className="ligne"><span>Marge d'exploitation</span><b>{fP(c.marge, 1)}{Math.abs(chargeStrategique(c)) > 1e-6 && <> · publiée {fP(c.marge - chargeStrategique(c), 1)}</>}</b></div>
         <div className="ligne"><span>Marge cible</span><b>{fP(c.margeRef, 1)}{Math.abs(latente) > 0.0005 && <> ({fPts(latente)} en gestation)</>}</b></div>
-        <div className="ligne"><span>Croissance visée</span><b>{dg ? `${fPts(dg)} par an sur le secteur` : 'rythme du secteur'}</b></div>
+        <div className="ligne"><span>Croissance visée</span><b>{dg ? `${fPts(dg)} par an sur le secteur` : 'rythme du secteur'}{Math.abs(facteurCroissance(c) - 1) > 0.0005 && <> · multiple {signe(facteurCroissance(c) - 1)}</>}</b></div>
         <div className="ligne"><span>Budget de {LIBELLE_EFFORT[pe.nature]}</span><b>{fP(effortDe(c), 1)} du CA (norme {fP(pe.norme, 1)})</b></div>
         <div className="ligne"><span>EBIT annuel publié</span><b className={classeVar(ebit)}>{fM(ebit)}</b></div>
         <div className="ligne"><span>Résultat net (rythme)</span><b className={classeVar(rn)}>{fM(rn)}</b></div>

@@ -30,6 +30,13 @@ export const PLANCHER_MARGE = 0.3;           // marge cible minimale, en fractio
 export const PLAFOND_MARGE = 1.6;            // commun avec la restructuration
 export const LIBELLE_EFFORT = { rd: 'R&D', marketing: 'marketing' };
 export const HORIZON_STRATEGIE = 20;         // trimestres projetés dans l'aperçu
+// Le marché paie un multiple plus élevé pour une croissance visée tenue dans la durée : le crédit qu'il lui
+// accorde rejoint la croissance effective (au plus +3 points) d'un huitième par trimestre, en deux ans environ,
+// et chaque point crédité relève le multiple de 3 %. Sacrifier la croissance le fait baisser de même.
+export const CREDIT_CROISSANCE = 3;
+export const CREDIT_MAX = 0.03;
+export const VITESSE_CREDIT = 0.125;
+export const facteurCroissance = (c) => 1 + CREDIT_CROISSANCE * (c.croissanceCredit || 0);
 
 export const parametresEffort = (c) => SECT_BY_ID[c.secteur]?.effort || null;
 export const effortDe = (c) => { const p = parametresEffort(c); return p ? (c.effort ?? p.norme) : 0; };
@@ -63,9 +70,12 @@ export function evolutionStrategique(c) {
   const dg = croissanceDe(c);
   const x = effortDe(c) - p.norme;
   let latente = c.margeLatente || 0;
-  if (!dg && Math.abs(x) < 1e-9 && !latente) return;
+  if (!dg && Math.abs(x) < 1e-9 && !latente && !c.croissanceCredit) return;
   const sec = SECT_BY_ID[c.secteur];
-  if (dg) c.ca *= 1 + dg * facteurTaille(c.ca) / 4;
+  const effective = dg * facteurTaille(c.ca);
+  if (dg) c.ca *= 1 + effective / 4;
+  const credit = (c.croissanceCredit || 0) + VITESSE_CREDIT * (Math.min(effective, CREDIT_MAX) - (c.croissanceCredit || 0));
+  if (Math.abs(credit) > 1e-5 || dg) c.croissanceCredit = credit; else delete c.croissanceCredit;
   const plafond = PLAFOND_MARGE * sec.marge, plancher = PLANCHER_MARGE * sec.marge;
   if (Math.abs(x) >= 1e-9) {
     const unitaire = p.efficacite * RENDEMENT_EFFORT * (1 - IMPOT) / sec.mult / 4;
@@ -95,7 +105,7 @@ export function verifierStrategie(c, { croissance, effort }) {
 
 // Projection sans aléa ni conjoncture, pour comparer deux politiques dans l'aperçu
 export function projeterStrategie(c0, { croissance, effort }, trimestres = HORIZON_STRATEGIE) {
-  const c = { secteur: c0.secteur, ca: c0.ca, marge: c0.marge, margeRef: c0.margeRef, margeLatente: c0.margeLatente || 0, caPipeline: c0.caPipeline || 0, effort, croissanceVisee: croissance };
+  const c = { secteur: c0.secteur, ca: c0.ca, marge: c0.marge, margeRef: c0.margeRef, margeLatente: c0.margeLatente || 0, caPipeline: c0.caPipeline || 0, croissanceCredit: c0.croissanceCredit || 0, effort, croissanceVisee: croissance };
   let charges = 0;
   for (let t = 0; t < trimestres; t++) {
     c.ca *= 1 + croissanceSecteur(c) / 4;
@@ -105,7 +115,7 @@ export function projeterStrategie(c0, { croissance, effort }, trimestres = HORIZ
     charges += chargeStrategique(c) * c.ca / 4;
   }
   const charge = chargeStrategique(c);
-  return { ca: c.ca, marge: c.marge, margeCible: c.margeRef + c.margeLatente, ebitNormatif: c.ca * c.marge, ebitPublie: c.ca * (c.marge - charge), charges };
+  return { ca: c.ca, marge: c.marge, margeCible: c.margeRef + c.margeLatente, ebitNormatif: c.ca * c.marge, ebitPublie: c.ca * (c.marge - charge), charges, facteurCroissance: facteurCroissance(c) };
 }
 
 export function apercuStrategie(s, id, politique) {

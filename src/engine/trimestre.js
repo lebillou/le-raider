@@ -211,7 +211,7 @@ export function finTrimestre(s0) {
     if (fr < 0) {
       cp.actif = false;
       for (const c of actives(s)) if (c.actionnaires[rd.id]) { c.actionnaires.public += c.actionnaires[rd.id]; delete c.actionnaires[rd.id]; c.prix *= 0.92; }
-      cp.cash = 0; cp.marge = 0;
+      cp.cash = 0; cp.marge = 0; delete cp.courtes;
       s.offres = s.offres.filter(o => o.acteur !== rd.id);
       journal(s, 'concurrent', `${rd.nom} est en cessation de paiements : ses positions sont liquidées sur le marché.`, rd.id);
     }

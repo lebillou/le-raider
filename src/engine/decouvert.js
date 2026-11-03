@@ -51,20 +51,25 @@ export function vendreADecouvert(s0, id, montant) {
   const s = cloner(s0);
   const c = societe(s, id);
   if (controlees(s).has(c.id)) throw new Error(`${c.nom} fait partie de votre groupe : parier contre elle serait un délit d'initié.`);
+  _vendreADecouvert(s, JOUEUR, c, montant);
+  return s;
+}
+// Vente à découvert au nom d'un acteur (vous ou un raider), sans clonage : l'appelant a écarté son propre groupe
+export function _vendreADecouvert(s, h, c, montant) {
   if (c.nonCotee) throw new Error(`${c.nom} n'est pas cotée : il n'y a pas de titres à emprunter.`);
-  const ap = apercuVenteDecouvert(s, id, montant);
+  const ap = apercuVenteDecouvert(s, c.id, montant, h);
   if (ap.titres > ap.disponible + 1e-9) throw new Error(`Les prêteurs n'ont plus que ${fmtTitres(ap.disponible)} ${c.nom} à prêter (${Math.round(100 * PART_PRETABLE)} % du flottant au plus).`);
   if (montant > ap.capacite + 1e-9) throw new Error(`Votre courtier limite vos ventes à découvert à votre fortune nette : ${ap.capacite.toFixed(1)} M€ de plus au plus.`);
-  _ouvrir(s, JOUEUR, c, ap);
-  journal(s, 'vente', `Vous vendez à découvert ${fmtTitres(ap.titres)} ${c.nom} à ${ap.prixMoyen.toFixed(2)} € (${ap.produit.toFixed(1)} M€) ; le cours passe à ${ap.prixApres.toFixed(2)} €.`, JOUEUR);
-  return s;
+  _ouvrir(s, h, c, ap);
+  if (h === JOUEUR) journal(s, 'vente', `Vous vendez à découvert ${fmtTitres(ap.titres)} ${c.nom} à ${ap.prixMoyen.toFixed(2)} € (${ap.produit.toFixed(1)} M€) ; le cours passe à ${ap.prixApres.toFixed(2)} €.`, JOUEUR);
+  else journal(s, 'concurrent', `${RAIDER_BY_ID[h].nom} vend à découvert ${fmtTitres(ap.titres)} ${c.nom} à ${ap.prixMoyen.toFixed(2)} € (${ap.produit.toFixed(1)} M€), pariant sur sa baisse.`, h);
 }
 function _ouvrir(s, h, c, ap) {
   const cp = compte(s, h);
   const p = cp.courtes?.[c.id];
   const titres = (p?.titres || 0) + ap.titres;
   const prixMoyen = ((p ? p.titres * p.prixMoyen : 0) + ap.titres * ap.prixMoyen) / titres;
-  cp.courtes = { ...(cp.courtes || {}), [c.id]: { titres, prixMoyen } };
+  cp.courtes = { ...(cp.courtes || {}), [c.id]: { titres, prixMoyen, tour: p?.tour ?? s.tour } };
   crediter(s, h, ap.produit);
   c.prix = ap.prixApres;
 }
@@ -83,11 +88,16 @@ export function apercuCouverture(s, id, titres, h = JOUEUR, prime = 0) {
 export function couvrir(s0, id, titres) {
   const s = cloner(s0);
   const c = societe(s, id);
-  const ap = apercuCouverture(s, id, titres);
-  debiter(s, JOUEUR, ap.cout);
-  _fermer(s, JOUEUR, c, ap);
-  journal(s, 'achat', `Vous couvrez ${fmtTitres(ap.titres)} ${c.nom} vendus à découvert, rachetés à ${ap.prixMoyen.toFixed(2)} € : ${ap.resultat >= 0 ? 'gain' : 'perte'} de ${Math.abs(ap.resultat).toFixed(1)} M€.`, JOUEUR);
+  _couvrir(s, JOUEUR, c, titres);
   return s;
+}
+export function _couvrir(s, h, c, titres) {
+  const ap = apercuCouverture(s, c.id, titres, h);
+  debiter(s, h, ap.cout);
+  _fermer(s, h, c, ap);
+  const bilan = `${ap.resultat >= 0 ? 'gain' : 'perte'} de ${Math.abs(ap.resultat).toFixed(1)} M€`;
+  if (h === JOUEUR) journal(s, 'achat', `Vous couvrez ${fmtTitres(ap.titres)} ${c.nom} vendus à découvert, rachetés à ${ap.prixMoyen.toFixed(2)} € : ${bilan}.`, JOUEUR);
+  else journal(s, 'concurrent', `${RAIDER_BY_ID[h].nom} rachète ${fmtTitres(ap.titres)} ${c.nom} vendus à découvert, à ${ap.prixMoyen.toFixed(2)} € : ${bilan}.`, h);
 }
 function _fermer(s, h, c, ap) {
   const cp = compte(s, h);

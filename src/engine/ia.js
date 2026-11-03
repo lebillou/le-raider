@@ -1,5 +1,5 @@
 // Intelligence des raiders concurrents.
-import { actives, capi, flottant, pct, valeurParticipations } from './acces.js';
+import { actives, capi, flottant, fortune, pct, valeurParticipations } from './acces.js';
 import { gauss } from './alea.js';
 import { JOUEUR, RAIDERS, compte, niveauIA } from './config.js';
 import { controlees, repartitionControle } from './controle.js';
@@ -10,6 +10,7 @@ import { acheter, apercuOPA, lancerOPA, vendre } from './marche.js';
 import { _emprunter, distribuer } from './pilotage.js';
 import { BUDGET_RUMEUR_MIN, _lancerRumeur, _porterPlainte, apercuPlainte, budgetPourChoc, peutPoursuivre, rumeursRecentes } from './manoeuvres.js';
 import { partDeclaree, plafondAvantOffre } from './seuils.js';
+import { _couvrir, _vendreADecouvert, capaciteDecouvert, expositionCourte, pretable } from './decouvert.js';
 import { _definirStrategie, croissanceDe, effortDe, parametresEffort } from './strategie.js';
 import { estHolding } from './secteurs.js';
 import { prixCible } from './valorisation.js';
@@ -20,9 +21,13 @@ import { prixCible } from './valorisation.js';
 // après vos ordres et avant que l'économie ne tourne.
 export const estimation = (s, rid, c) => prixCible(s, c) * (1 + (s.raiders[rid].biais[c.id] || 0)) * (s.raiders[rid].humeur || 1);
 
+// Vauclair vend à découvert (désactivable pour comparer l'équilibre)
+export const DECOUVERT_IA = true;
+
+// Le produit des ventes à découvert reste en garantie chez le courtier : il ne finance pas d'achats
 export function dispoActeur(s, h, margeMax) {
   const j = compte(s, h);
-  return j.cash + Math.max(0, margeMax * valeurParticipations(s, h) - j.marge);
+  return Math.max(0, j.cash - expositionCourte(s, h)) + Math.max(0, margeMax * valeurParticipations(s, h) - j.marge);
 }
 
 export function jouerRaiders(s, r) {
@@ -118,6 +123,29 @@ export function jouerRaiders(s, r) {
       const entree = s.raiders[rd.id].acquis[c.id];
       if (ratio > seuil || (rd.style === 'opportuniste' && entree > 0 && c.prix > 1.35 * entree)) {
         if (appliquer(() => vendre(s, rd.id, id, s.societes[id].actionnaires[rd.id]))) ventes++;
+      }
+    }
+
+    // 3 bis. Vauclair vend à découvert ce qu'il juge nettement trop cher et rachète quand le cours est revenu
+    if (rd.style === 'valeur' && DECOUVERT_IA) {
+      for (const [id, p] of Object.entries(s.raiders[rd.id].courtes || {})) {
+        const c = s.societes[id];
+        if (!c?.active) continue;
+        if (c.prix / estimation(s, rd.id, c) < 1.02 || s.tour - (p.tour ?? s.tour) >= 8) {
+          try { _couvrir(s, rd.id, c, p.titres); } catch (e) { if (globalThis.DEBUG_RAIDER) console.log('refus IA :', e.message); }
+        }
+      }
+      if (Object.keys(s.raiders[rd.id].courtes || {}).length < 3) {
+        let cible = null, ratioMax = 1.3;
+        for (const c of actives(s)) {
+          if (c.nonCotee || ctrl.has(c.id) || (c.actionnaires[rd.id] || 0) > 0 || s.raiders[rd.id].courtes?.[c.id] || pretable(s, c) <= 0) continue;
+          const ratio = c.prix / estimation(s, rd.id, c);
+          if (ratio > ratioMax) { ratioMax = ratio; cible = c; }
+        }
+        if (cible) {
+          const montant = Math.min(0.15 * fortune(s, rd.id), capaciteDecouvert(s, rd.id), 0.9 * pretable(s, cible) * cible.prix);
+          if (montant >= 1) { try { _vendreADecouvert(s, rd.id, cible, montant); } catch (e) { if (globalThis.DEBUG_RAIDER) console.log('refus IA :', e.message); } }
+        }
       }
     }
 

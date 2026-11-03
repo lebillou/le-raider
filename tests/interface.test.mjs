@@ -13,7 +13,7 @@ before(async () => {
   // compilé dans le cache du projet pour que React y soit résolu
   const sortie = join(process.cwd(), 'node_modules', '.cache', 'raider-tests', `ui-${process.pid}.mjs`);
   await build({
-    stdin: { contents: "export { default as App } from './src/App.jsx'; export * from './src/ui/Fenetre.jsx'; export * from './src/ui/Creation.jsx'; export * from './src/ui/NouvellePartie.jsx'; export * from './src/ui/Resume.jsx'; export * from './src/ui/Sauvegarde.jsx'; export * from './src/ui/Journal.jsx';", resolveDir: process.cwd(), loader: 'js' },
+    stdin: { contents: "export { default as App } from './src/App.jsx'; export * from './src/ui/Fenetre.jsx'; export * from './src/ui/Creation.jsx'; export * from './src/ui/NouvellePartie.jsx'; export * from './src/ui/Resume.jsx'; export * from './src/ui/Sauvegarde.jsx'; export * from './src/ui/Journal.jsx'; export * from './src/ui/ordres.jsx';", resolveDir: process.cwd(), loader: 'js' },
     bundle: true, format: 'esm', platform: 'node', jsx: 'automatic', outfile: sortie, logLevel: 'error',
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   });
@@ -78,4 +78,23 @@ test('bilan de fin de partie', () => {
   for (let i = 0; i < 80 && !s.fini; i++) s = m.finTrimestre(s);
   assert.ok(s.fini);
   contient(rendre(h(ui.App, { initial: s, ongletInitial: 'bilan' })), 'Palmarès', 'Fortunes comparées', 'Chronique complète', 'Nouvelle partie');
+});
+
+test('les calculs des fenêtres d\'ordre appellent le moteur à l\'identique', () => {
+  const { s, A } = etatRiche();
+  const c = m.actives(s).find(x => !m.controlees(s).has(x.id) && x.actionnaires.public > 0.5 * x.actions);
+  const base = { s, c, acteur: J, prime: 0.3, numEff: 1, action: { type: 'acheter', cible: c.id } };
+  const achat = { ...base, t: 'acheter', m: 2 };
+  achat.dispo = ui.disponible(achat);
+  assert.ok(ui.calculerApercu(achat).length > 3);
+  assert.deepEqual(ui.executerOrdre(achat), m.acheter(s, J, c.id, 2));
+  // Même résultat, ou même refus, que l'appel direct au moteur
+  const pareil = (f, g) => { let a, b; try { a = f(); } catch (e) { a = e.message; } try { b = g(); } catch (e) { b = e.message; } assert.deepEqual(a, b); };
+  pareil(() => ui.executerOrdre({ ...base, t: 'opa', m: NaN }), () => m.lancerOPA(s, J, c.id, 0.3, 1));
+  if (m.controlees(s).has(A)) {
+    const f = s.societes[A];
+    const emprunt = { ...base, c: f, t: 'emprunter', m: 0.5 };
+    assert.deepEqual(ui.executerOrdre(emprunt), m.emprunter(s, A, 0.5));
+  }
+  assert.throws(() => ui.executerOrdre({ ...base, t: 'acheter', m: m.capi(c) }), /offre publique|Trésorerie/);
 });
