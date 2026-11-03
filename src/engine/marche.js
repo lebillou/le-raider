@@ -5,6 +5,7 @@ import { controlees, controleursChaine, repartitionControle, simulerControle } f
 import { journal } from './creation.js';
 import { apercuAchat, apercuVente, cloner, crediter, debiter, nomActeur, proprietaire, verifierActeur, verifierAntitrust } from './transactions.js';
 import { fmtTitres } from './trimestre.js';
+import { messageOffreObligatoire, plafondAvantOffre } from './seuils.js';
 
 // ---------- ACTIONS DU JOUEUR ----------
 export function acheter(s0, acteur, cibleId, montant) {
@@ -17,6 +18,8 @@ export function acheter(s0, acteur, cibleId, montant) {
   if (acteur !== JOUEUR && !estRaider(s, acteur) && controleursChaine(s, acteur).has(cibleId)) throw new Error(`Autocontrôle interdit : ${c.nom} contrôle ${s.societes[acteur].nom}.`);
   const ap = apercuAchat(s, cibleId, montant);
   if (ap.titres <= 1e-6) throw new Error('Plus aucun titre disponible sur le marché : il faut lancer une OPA.');
+  const plafond = plafondAvantOffre(s, acteur, cibleId);
+  if (ap.titres > plafond + 1e-9) throw new Error(messageOffreObligatoire(s, acteur, cibleId, plafond));
   debiter(s, acteur, ap.cout, ap.titres * ap.prixMoyen);
   c.actionnaires.public -= ap.titres;
   c.actionnaires[acteur] = (c.actionnaires[acteur] || 0) + ap.titres;

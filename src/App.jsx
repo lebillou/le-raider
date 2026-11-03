@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { finTrimestre, nouvellePartie, prolonger } from './engine/index.js';
+import { finTrimestre, nouvellePartie, prolonger, resumeTrimestre } from './engine/index.js';
 import { Bandeau } from './ui/Bandeau.jsx';
 import { Bilan } from './ui/Bilan.jsx';
 import { Concurrents } from './ui/Concurrents.jsx';
@@ -9,8 +9,10 @@ import { Fenetre } from './ui/Fenetre.jsx';
 import { Journal } from './ui/Journal.jsx';
 import { NouvellePartie } from './ui/NouvellePartie.jsx';
 import { Portefeuille } from './ui/Portefeuille.jsx';
+import { ResumeTrimestre } from './ui/Resume.jsx';
+import { Sauvegarde } from './ui/Sauvegarde.jsx';
 import { Societe } from './ui/Societe.jsx';
-import { charger, sauver } from './sauvegarde.js';
+import { charger, lirePreference, sauver, ecrirePreference } from './sauvegarde.js';
 
 export default function App({ initial = null, ongletInitial = 'cote', selectionInitiale = null }) {
   const [s, setS] = useState(() => initial || nouvellePartie());
@@ -19,6 +21,9 @@ export default function App({ initial = null, ongletInitial = 'cote', selectionI
   const [action, setAction] = useState(null);
   const [dialogue, setDialogue] = useState(false);
   const [creation, setCreation] = useState(false);
+  const [resume, setResume] = useState(null);
+  const [fichier, setFichier] = useState(false);
+  const [afficherResume, setAfficherResume] = useState(() => lirePreference('resume', true));
   const [large, setLarge] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 820 : true);
   const charge = useRef(false);
 
@@ -35,7 +40,12 @@ export default function App({ initial = null, ongletInitial = 'cote', selectionI
   useEffect(() => { if (s.tour > 0 || s.journal.length > 1) sauver(s); }, [s]);
 
   const choisir = (id) => { setSel(id); if (!large) setOnglet('societe'); };
-  const fin = () => setS(finTrimestre(s));
+  const fin = () => {
+    const n = finTrimestre(s);
+    if (afficherResume && !n.fini) setResume(resumeTrimestre(s, n));
+    setS(n);
+  };
+  const changerAfficherResume = (v) => { setAfficherResume(v); ecrirePreference('resume', v); };
   const nouvelle = () => setDialogue(true);
   const creer = (ans, reglages = {}) => { const n = nouvellePartie(undefined, { nbTours: 4 * ans, ...reglages }); setS(n); sauver(n); setSel(null); setOnglet('cote'); setDialogue(false); };
   const prolongerPartie = () => { setS(prolonger(s, 10)); setOnglet('cote'); };
@@ -50,7 +60,7 @@ export default function App({ initial = null, ongletInitial = 'cote', selectionI
 
   return (
     <div className="rd">
-      <Bandeau s={s} onFin={fin} onNouvelle={nouvelle} />
+      <Bandeau s={s} onFin={fin} onNouvelle={nouvelle} onSauvegarde={() => setFichier(true)} />
       <nav className="nav">
         {[...(s.fini ? [['bilan', 'Bilan']] : []), ...(large ? [['cote', 'La cote'], ['portefeuille', 'Portefeuille'], ['concurrents', 'Concurrents'], ['journal', 'Journal']] : [['cote', 'La cote'], ['societe', 'Société'], ['portefeuille', 'Portefeuille'], ['concurrents', 'Concurrents'], ['journal', 'Journal']])].map(([id, l]) =>
           <button key={id} className={onglet === id ? 'actif' : ''} onClick={() => setOnglet(id)}>{l}</button>)}
@@ -66,6 +76,8 @@ export default function App({ initial = null, ongletInitial = 'cote', selectionI
         <div className="corps"><div className="colonne">{onglet === 'cote' ? <Cote s={s} sel={sel} onSel={choisir} onCreer={() => setCreation(true)} /> : droite}</div></div>
       )}
       {action && !s.fini && <Fenetre s={s} action={action} onFermer={() => setAction(null)} onValider={(n) => { setS(n); setAction(null); }} />}
+      {resume && <ResumeTrimestre r={resume} onFermer={() => setResume(null)} afficher={afficherResume} onAfficher={changerAfficherResume} />}
+      {fichier && <Sauvegarde s={s} onFermer={() => setFichier(false)} onImporter={(n) => { setS(n); sauver(n); setSel(null); setOnglet(n.fini ? 'bilan' : 'cote'); setFichier(false); setResume(null); }} />}
       {dialogue && <NouvellePartie onFermer={() => setDialogue(false)} onCreer={creer} />}
       {creation && !s.fini && <Creation s={s} onFermer={() => setCreation(false)} onValider={(n) => { setS(n); setCreation(false); setSel(`F${n.nbFondees}`); if (!large) setOnglet('societe'); }} />}
     </div>

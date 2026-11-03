@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { positionsCourtes, procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
+import { RAIDER_BY_ID, apercuRetrait, positionsCourtes, procesEnCours, compteCourant, tauxCompteCourant, totalComptesCourants, ANTICIPATION, COUT_RESTRUCTURATION, LIBELLE_EFFORT, chargeStrategique, croissanceDe, effortDe, parametresEffort, DECOTE_HOLDING, DELAI_EMISSION, DELAI_RESTRUCTURATION, JOUEUR, MARGE_MAX, PRIME_NOYAU, SECT_BY_ID, SEUIL_CONTROLE, SEUIL_RELATIF, TYPES_OBLIGATIONS, actives, blocsDeVote, capaciteEmprunt, capi, controlees, couponsAnnuels, detentionEffective, detteObligataire, ebitAnnuel, estHolding, estRaider, levier, libelleTour, ltv, natureControle, nomDetenteur, nomGroupe, notation, pct, per, repartitionControle, resultatNetAnnuel, tauxEmprunt, valeurParticipations, valeurPortefeuille } from '../engine/index.js';
 import { Spark } from './Graphiques.jsx';
 import { DetailMandat } from './Portefeuille.jsx';
 import { classeVar, fE, fM, fP, fPts, fT, nf, signe } from './format.js';
@@ -49,7 +49,7 @@ export function Societe({ s, id, onAction, onSel }) {
   const pe = parametresEffort(c), dg = croissanceDe(c), latente = c.margeLatente || 0;
   return (
     <div>
-      <h2 className="rs">{c.nom}{estCtrl && <span className="ctrl" style={{ fontSize: 12, verticalAlign: 'middle', marginLeft: 8 }}>sous votre contrôle</span>}{c.creePar && <span className="cree">créée en {libelleTour(c.creeAu)}</span>}</h2>
+      <h2 className="rs">{c.nom}{estCtrl && <span className="ctrl" style={{ fontSize: 12, verticalAlign: 'middle', marginLeft: 8 }}>sous votre contrôle</span>}{c.creePar && <span className="cree">créée en {libelleTour(c.creeAu)}</span>}{c.nonCotee && <span className="cree">hors cote</span>}</h2>
       <div className="sous">{sec.nom} · notation {notation(c, s)} · {fE(c.prix)} <span className={classeVar(varAn)}>({signe(varAn)} sur un an)</span> <Spark hist={c.hist} w={90} h={20} />{c.ceo && <> · PDG : {c.ceo.h === JOUEUR ? 'vous' : nomDetenteur(s, c.ceo.h)}</>}</div>
       {hold ? (
       <div className="grille">
@@ -115,6 +115,7 @@ export function Societe({ s, id, onAction, onSel }) {
           {!estCtrl && !hold && <button onClick={() => onAction({ type: 'plainte', cible: c.id })} disabled={procesEnCours(s, c.id).length > 0}>Plainte antitrust</button>}
         </div>
       )}
+      {Object.keys(s.declarations?.[c.id] || {}).length > 0 && <div className="sous" style={{ marginTop: 4 }}>Déclarations de seuil : {Object.entries(s.declarations[c.id]).map(([h, v]) => `${h === JOUEUR ? 'vous' : RAIDER_BY_ID[h].nom} ${fP(v)}`).join(', ')}.</div>}
       {positionsCourtes(s)[c.id] && (() => { const p = positionsCourtes(s)[c.id], res = p.titres * (p.prixMoyen - c.prix); return <div className="sous" style={{ marginTop: 6 }}>Vous êtes vendeur à découvert de {fT(p.titres)} titres, vendus en moyenne {fE(p.prixMoyen)} : {res >= 0 ? 'gain' : 'perte'} latent{res >= 0 ? '' : 'e'} de <b className={res >= 0 ? 'hausse' : 'baisse'}>{fM(Math.abs(res))}</b>.</div>; })()}
       {procesEnCours(s, c.id).map(p => <div className="aide" key={p.plaignant}>Procédure antitrust en cours sur plainte de {s.societes[p.plaignant].nom} : décision en {libelleTour(p.echeance)}, chances de condamnation {fP(p.chances)}.</div>)}
       {!estCtrl && !s.fini && <div className="aide">Contrôler une société demande 50 % des droits de vote, ou 25 % si aucun autre bloc n'atteint 25 %.{rival ? ` Ici, ${nomGroupe(s, rival[0])} pèse ${fP(rival[1] / c.actions, 1)} : ${rival[1] / c.actions >= SEUIL_RELATIF ? `il vous faudra ${fM(SEUIL_CONTROLE * capi(c))} (50 %) au cours actuel, ou le faire sortir` : `${fM(SEUIL_RELATIF * capi(c))} (25 %) suffisent au cours actuel`}.` : ` Aucun bloc constitué : ${fM(SEUIL_RELATIF * capi(c))} (25 %) suffisent au cours actuel.`} Vous disposez de {fM(dispoJ)} (trésorerie et marge). {c.actionnaires.noyau ? `Le noyau dur (${fP(pct(c, 'noyau'))}) ne cède qu'à une OPA avec au moins ${fP(PRIME_NOYAU)} de prime.` : ''}</div>}
@@ -158,6 +159,7 @@ export function Societe({ s, id, onAction, onSel }) {
           <button onClick={() => onAction({ type: 'emission', cible: c.id })} disabled={c.derniereEmission !== undefined && s.tour - c.derniereEmission < DELAI_EMISSION}>Augmentation de capital</button>
           <button onClick={() => onAction({ type: 'obligations', cible: c.id })} disabled={c.derniereObligation === s.tour}>Émettre des obligations</button>
           {!c.ceo && <button onClick={() => onAction({ type: 'mandat', cible: c.id })}>Vous faire élire PDG</button>}
+          {apercuRetrait(s, c.id, ctl).possible && <button onClick={() => onAction({ type: 'retrait', cible: c.id })}>Retrait obligatoire</button>}
           <button onClick={() => onAction({ type: 'fusion', cible: c.id })} disabled={!filiales.length}>Absorber une filiale</button>
         </div>
         <div className="aide">Pour acheter ou lancer une offre au nom de {c.nom}, ouvrez la société visée et choisissez « au nom de » dans la fenêtre d'ordre ; une offre au nom de {c.nom} peut être payée en actions {c.nom} nouvelles. {filiales.length ? `Absorbables (sociétés que vous contrôlez, directement ou via vos filiales) : ${filiales.map(f => f.nom).join(', ')}.` : ''}</div>

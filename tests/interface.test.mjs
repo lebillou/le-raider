@@ -13,7 +13,7 @@ before(async () => {
   // compilé dans le cache du projet pour que React y soit résolu
   const sortie = join(process.cwd(), 'node_modules', '.cache', 'raider-tests', `ui-${process.pid}.mjs`);
   await build({
-    stdin: { contents: "export { default as App } from './src/App.jsx'; export * from './src/ui/Fenetre.jsx'; export * from './src/ui/Creation.jsx'; export * from './src/ui/NouvellePartie.jsx';", resolveDir: process.cwd(), loader: 'js' },
+    stdin: { contents: "export { default as App } from './src/App.jsx'; export * from './src/ui/Fenetre.jsx'; export * from './src/ui/Creation.jsx'; export * from './src/ui/NouvellePartie.jsx'; export * from './src/ui/Resume.jsx'; export * from './src/ui/Sauvegarde.jsx'; export * from './src/ui/Journal.jsx';", resolveDir: process.cwd(), loader: 'js' },
     bundle: true, format: 'esm', platform: 'node', jsx: 'automatic', outfile: sortie, logLevel: 'error',
     external: ['react', 'react-dom', 'react/jsx-runtime'],
   });
@@ -51,7 +51,7 @@ test('écrans principaux', () => {
 test('toutes les fenêtres d\'ordre', () => {
   const { s, A } = etatRiche();
   const cible = m.controlees(s).has(A) ? A : 'F1';
-  for (const type of ['acheter', 'vendre', 'opa', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'restructurer', 'payout', 'fusion', 'emission', 'obligations', 'mandat', 'strategie', 'compteCourant', 'rembourserCC'])
+  for (const type of ['acheter', 'vendre', 'opa', 'emprunter', 'rembourser', 'dividende', 'rachat', 'investir', 'ceder', 'restructurer', 'payout', 'fusion', 'emission', 'obligations', 'mandat', 'strategie', 'compteCourant', 'rembourserCC', 'retrait'])
     contient(rendre(h(ui.Fenetre, { s, action: { type, cible }, onFermer() {}, onValider() {} })), 'Confirmer', 'Annuler');
   // F2 : la société de technologie créée, contrôlée d'emblée
   contient(rendre(h(ui.Fenetre, { s, action: { type: 'strategie', cible: 'F2' }, onFermer() {}, onValider() {} })), 'Croissance visée', 'Budget de R&amp;D', 'Charges stratégiques', 'Gestion habituelle');
@@ -66,6 +66,10 @@ test('toutes les fenêtres d\'ordre', () => {
   contient(rendre(h(ui.Fenetre, { s, action: { type: 'plainte', cible: autre.id }, onFermer() {}, onValider() {} })), 'Plainte antitrust', 'concurrente');
   contient(rendre(h(ui.App, { initial: s, selectionInitiale: autre.id })), 'Diffuser une rumeur', 'Plainte antitrust');
   contient(rendre(h(ui.Creation, { s, onFermer() {}, onValider() {} })), 'Créer une société', 'Raison sociale', 'Apports en nature', 'Apport en numéraire');
+  const apres = m.finTrimestre(s);
+  contient(rendre(h(ui.ResumeTrimestre, { r: m.resumeTrimestre(s, apres), onFermer() {}, afficher: true, onAfficher() {} })), 'Clôture du', 'Votre fortune', 'Vous concernant', 'Continuer');
+  contient(rendre(h(ui.Sauvegarde, { s, onFermer() {}, onImporter() {} })), 'Télécharger le fichier', 'Importer une partie', 'Charger ce texte');
+  contient(rendre(h(ui.Chronologie, { s: apres })), 'Détail des opérations courantes', 'Opérations courantes : ');
   contient(rendre(h(ui.NouvellePartie, { onFermer() {}, onCreer() {} })), 'Durée de la partie', 'Difficulté', 'Vos concurrents', 'Impitoyables');
 });
 

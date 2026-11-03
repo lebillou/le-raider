@@ -9,6 +9,7 @@ import { capaciteEmprunt, detteTotale, ebitAnnuel } from './finance.js';
 import { acheter, apercuOPA, lancerOPA, vendre } from './marche.js';
 import { _emprunter, distribuer } from './pilotage.js';
 import { BUDGET_RUMEUR_MIN, _lancerRumeur, _porterPlainte, apercuPlainte, budgetPourChoc, peutPoursuivre, rumeursRecentes } from './manoeuvres.js';
+import { partDeclaree, plafondAvantOffre } from './seuils.js';
 import { _definirStrategie, croissanceDe, effortDe, parametresEffort } from './strategie.js';
 import { estHolding } from './secteurs.js';
 import { prixCible } from './valorisation.js';
@@ -137,8 +138,8 @@ export function jouerRaiders(s, r) {
         if (prime === null) continue;
         const ap = apercuOPA(s, rd.id, c.id, prime, 1, ctlIA);
         if (ap.cout > dispoActeur(s, rd.id, rd.margeMax) * 0.9) continue;
-        const partJ = pct(c, JOUEUR);
-        const sc = (1.3 - ratio) + (c.actionnaires[rd.id] ? 0.3 : 0) + (rd.style !== 'valeur' && partJ > 0.1 && partJ < 0.5 ? 0.4 : 0) - prime * 0.5;
+        const partJ = partDeclaree(s, c.id);   // les raiders ne voient de vous que vos déclarations de seuil
+        const sc = (1.3 - ratio) + (c.actionnaires[rd.id] ? 0.3 : 0) + (rd.style !== 'valeur' && partJ >= 0.10 && partJ < 0.5 ? 0.4 : 0) - prime * 0.5;
         if (sc > score) { score = sc; meilleure = { id: c.id, prime }; }
       }
       if (meilleure) rumeurAvant(meilleure.id, 0.08);
@@ -150,9 +151,9 @@ export function jouerRaiders(s, r) {
     const budget = () => dispoActeur(s, rd.id, rd.margeMax) * (rd.style === 'valeur' ? 0.25 : 0.2);
     const candidats = actives(s).filter(c => !ctrlR[rd.id].has(c.id) && flottant(c) / c.actions > 0.15).map(c => {
       const ratio = c.prix / estimation(s, rd.id, c);
-      const partJ = pct(c, JOUEUR);
+      const partJ = partDeclaree(s, c.id);
       let attrait = 0.97 - ratio;                                                                                  // décote perçue
-      if (rd.style === 'opportuniste' && partJ > 0.05 && partJ < 0.5 && !ctrlJ.has(c.id)) attrait += 0.25;      // se glisser dans vos cibles
+      if (rd.style === 'opportuniste' && partJ >= 0.05 && partJ < 0.5 && !ctrlJ.has(c.id)) attrait += 0.25;      // se glisser dans vos cibles
       if (rd.style === 'raider' && capi(c) < 200 && !controleePar(c.id)) attrait += 0.08;                        // préparer une OPA
       if (c.actionnaires[rd.id] > 0 && pct(c, rd.id) > 0.2) attrait -= 0.15;                                     // ne pas surconcentrer
       return { id: c.id, attrait };
@@ -162,8 +163,9 @@ export function jouerRaiders(s, r) {
       const b = budget();
       if (b < 1) break;
       const c = s.societes[id];
-      if (rd.style === 'opportuniste' && pct(c, JOUEUR) > 0.05 && !ctrlJ.has(c.id)) rumeurAvant(id, 0.06);   // Meridian déprécie vos cibles avant d'y entrer
-      const montant = Math.min(b, capi(c) * (0.03 + 0.04 * r()));
+      if (rd.style === 'opportuniste' && partDeclaree(s, c.id) >= 0.05 && !ctrlJ.has(c.id)) rumeurAvant(id, 0.06);   // Meridian déprécie vos cibles avant d'y entrer
+      // Au-delà de 30 %, l'offre est obligatoire : le raider s'arrête au plafond
+      const montant = Math.min(b, capi(c) * (0.03 + 0.04 * r()), 0.98 * plafondAvantOffre(s, rd.id, id) * c.prix);
       if (montant < 0.5) continue;
       const prixEntree = c.prix;
       if (appliquer(() => acheter(s, rd.id, id, montant))) { achats++; s.raiders[rd.id].acquis[id] = prixEntree; ctrlR[rd.id] = controlees(s, rd.id); }

@@ -23,10 +23,13 @@ test('un rival à 25 % fait tomber le contrôle relatif ; 50 % le rétablit', ()
   let s = m.nouvellePartie(8);
   const c = societeLibre(s);
   s = m.acheter(s, J, c.id, m.capi(c) * 0.36);
-  s = m.acheter(s, 'R2', c.id, m.capi(s.societes[c.id]) * 0.40);
+  s = m.acheter(s, 'R2', c.id, m.capi(s.societes[c.id]) * 0.36);
   assert.ok(m.pct(s.societes[c.id], 'R2') >= 0.25);
   assert.equal(m.repartitionControle(s)[c.id], undefined, 'personne ne doit contrôler');
-  s = m.acheter(s, J, c.id, (0.5 - m.pct(s.societes[c.id], J)) * m.capi(s.societes[c.id]) * 1.6);
+  // Au-delà de 30 %, plus d'achat au marché : il faut une offre
+  assert.throws(() => m.acheter(s, J, c.id, m.capi(s.societes[c.id]) * 0.2), /offre publique/);
+  s.joueur.cash += 200;   // de quoi régler l'offre
+  s = m.lancerOPA(s, J, c.id, 0.35);
   assert.ok(m.pct(s.societes[c.id], J) >= 0.5);
   assert.equal(m.natureControle(s, c.id), 'majorite');
   verifier(s);
@@ -44,7 +47,7 @@ test('le contrôle se transmet en cascade et l\'autocontrôle est interdit', () 
   let s = m.nouvellePartie(5);
   s = m.creerSociete(s, J, { type: 'holding', nom: 'Mère', capital: 20 });
   const f = m.actives(s).filter(x => !x.actionnaires.noyau && !x.creePar).sort((a, b) => m.capi(a) - m.capi(b))[0];
-  s = m.acheter(s, 'F1', f.id, m.capi(f) * 0.45);
+  s = m.acheter(s, 'F1', f.id, m.capi(f) * 0.36);
   assert.equal(m.repartitionControle(s)[f.id], J, 'la filiale de la holding doit être à vous');
   assert.throws(() => m.acheter(s, f.id, 'F1', 0.5), /Autocontrôle/);
 });
@@ -56,8 +59,8 @@ test('une fusion est possible dès que vous contrôlez les deux sociétés, par 
   s = m.lancerOPA(s, J, A.id, 0.35);
   s = m.emprunter(s, A.id, m.capaciteEmprunt(s.societes[A.id], s));
   // ni vous ni votre filiale ne détenez 25 % seuls : c'est le cumul qui donne le contrôle
-  s = m.acheter(s, A.id, B.id, Math.min(s.societes[A.id].cash, m.capi(s.societes[B.id]) * 0.18));
-  s = m.acheter(s, J, B.id, m.capi(s.societes[B.id]) * 0.18);
+  s = m.acheter(s, A.id, B.id, Math.min(s.societes[A.id].cash, m.capi(s.societes[B.id]) * 0.15));
+  s = m.acheter(s, J, B.id, m.capi(s.societes[B.id]) * 0.15);
   assert.ok(m.pct(s.societes[B.id], J) < 0.25 && m.pct(s.societes[B.id], A.id) < 0.25);
   assert.ok(m.controlees(s).has(B.id), 'contrôle conjoint vous + filiale');
   const fortune = m.fortune(s);

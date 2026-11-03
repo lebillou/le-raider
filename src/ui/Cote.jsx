@@ -42,7 +42,7 @@ export function Cote({ s, sel, onSel, onCreer }) {
             const v = COLONNES[2].v(s, c), d = detentionEffective(s, c.id, ctrl), p = per(s, c);
             return (
               <tr key={c.id} className={sel === c.id ? 'sel' : ''} onClick={() => onSel(c.id)}>
-                <td className="nom">{c.nom}<small>{SECT_BY_ID[c.secteur].nom}{c.actionnaires.noyau ? ' · noyau dur' : ''}{c.creePar ? ' · créée en ' + libelleTour(c.creeAu) : ''}</small></td>
+                <td className="nom">{c.nom}<small>{SECT_BY_ID[c.secteur].nom}{c.actionnaires.noyau ? ' · noyau dur' : ''}{c.nonCotee ? ' · hors cote' : ''}{c.creePar ? ' · créée en ' + libelleTour(c.creeAu) : ''}</small></td>
                 <td>{fE(c.prix)}</td>
                 <td className={classeVar(v)}>{signe(v)}</td>
                 <td>{fM(capi(c))}</td>

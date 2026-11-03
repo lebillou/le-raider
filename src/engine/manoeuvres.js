@@ -81,6 +81,7 @@ export const budgetPourChoc = (choc, capitalisation) => capitalisation * Math.po
 
 export function apercuRumeur(s, cibleId, budget, h = JOUEUR) {
   const c = societe(s, cibleId);
+  if (c.nonCotee) throw new Error(`${c.nom} n'est pas cotée : une rumeur n'a pas de cours à faire baisser.`);
   if (!(budget >= BUDGET_RUMEUR_MIN)) throw new Error(`Budget minimum : ${BUDGET_RUMEUR_MIN} M€.`);
   const choc = chocRumeur(budget, capi(c));
   return { choc, prixApres: c.prix * (1 - choc), risque: risqueRumeur(s, choc, h), amende: amendeAMF(s, budget, h), recentes: rumeursRecentes(s, h) };

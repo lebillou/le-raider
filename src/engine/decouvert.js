@@ -51,6 +51,7 @@ export function vendreADecouvert(s0, id, montant) {
   const s = cloner(s0);
   const c = societe(s, id);
   if (controlees(s).has(c.id)) throw new Error(`${c.nom} fait partie de votre groupe : parier contre elle serait un délit d'initié.`);
+  if (c.nonCotee) throw new Error(`${c.nom} n'est pas cotée : il n'y a pas de titres à emprunter.`);
   const ap = apercuVenteDecouvert(s, id, montant);
   if (ap.titres > ap.disponible + 1e-9) throw new Error(`Les prêteurs n'ont plus que ${fmtTitres(ap.disponible)} ${c.nom} à prêter (${Math.round(100 * PART_PRETABLE)} % du flottant au plus).`);
   if (montant > ap.capacite + 1e-9) throw new Error(`Votre courtier limite vos ventes à découvert à votre fortune nette : ${ap.capacite.toFixed(1)} M€ de plus au plus.`);
@@ -158,5 +159,18 @@ export function convertirDecouvertsFusion(s, a, b, ratio) {
     const q = p.titres * ratio, ancien = cp.courtes[a.id];
     const titres = (ancien?.titres || 0) + q;
     cp.courtes[a.id] = { titres, prixMoyen: ((ancien ? ancien.titres * ancien.prixMoyen : 0) + p.titres * p.prixMoyen) / titres };
+  }
+}
+// Retrait obligatoire : les prêteurs sont indemnisés, les vendeurs à découvert doivent rendre les titres au prix du retrait
+export function solderDecouvertsRetrait(s, c, prix) {
+  for (const h of acteurs(s)) {
+    const cp = compte(s, h), p = cp.courtes?.[c.id];
+    if (!p) continue;
+    const cout = p.titres * prix;
+    cp.cash -= cout;
+    if (cp.cash < 0) { cp.marge += -cp.cash; cp.cash = 0; }
+    delete cp.courtes[c.id];
+    if (!Object.keys(cp.courtes).length) delete cp.courtes;
+    journal(s, h === JOUEUR ? 'alerte' : 'concurrent', `Le retrait de ${c.nom} de la cote oblige à racheter ${fmtTitres(p.titres)} vendus à découvert, à ${prix.toFixed(2)} € (${p.titres * (p.prixMoyen - prix) >= 0 ? 'gain' : 'perte'} de ${Math.abs(p.titres * (p.prixMoyen - prix)).toFixed(1)} M€).`, h);
   }
 }

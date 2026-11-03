@@ -15,6 +15,7 @@ import { croissanceSecteur, evolutionStrategique } from './strategie.js';
 import { compteCourant, tauxCompteCourant } from './comptes.js';
 import { traiterManoeuvres } from './manoeuvres.js';
 import { gererDecouverts, solderDecouvertsFaillite } from './decouvert.js';
+import { publierDeclarations, reintroductions } from './seuils.js';
 import { cloner, crediter } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
@@ -39,6 +40,8 @@ export function finTrimestre(s0) {
   s.tour += 1;
   const ctrlAvant = controlees(s);
   s.offres = [];
+  // Déclarations de franchissement de seuil : vos ordres du trimestre et ceux des raiders à la clôture précédente
+  publierDeclarations(s);
   jouerRaiders(s, r);
 
   // 1. Conjoncture et taux
@@ -143,8 +146,17 @@ export function finTrimestre(s0) {
   // 5. Cours : le marché suit la valeur fondamentale déformée par un sentiment persistant
   let valAvant = 0, valApres = 0;
   for (const c of actives(s)) valAvant += c.actions * c.prix;
+  reintroductions(s);
   for (const c of actives(s)) {
     c.sentiment = clamp(0.92 * (c.sentiment || 0) + 0.05 * gauss(r), -0.5, 0.5);
+    if (c.nonCotee) {
+      // Hors cote : évaluée à sa valeur fondamentale, sans humeur de marché
+      c.prix = Math.max(0.01, prixCible(s, c));
+      c.hist.push(c.prix); if (c.hist.length > 24) c.hist.shift();
+      c.histCa.push(c.ca); if (c.histCa.length > 24) c.histCa.shift();
+      valApres += c.actions * c.prix;
+      continue;
+    }
     const cible = prixCible(s, c) * Math.exp(c.sentiment);
     const vol = SECT_BY_ID[c.secteur].vol * dif.volatilite;
     c.prix = Math.max(0.01, c.prix * Math.exp(0.25 * Math.log(cible / c.prix) + vol * gauss(r)));

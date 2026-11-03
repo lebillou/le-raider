@@ -6,6 +6,7 @@ import { journal } from './creation.js';
 import { ebitAnnuel } from './finance.js';
 import { NOMS, SECTEURS, SECT_BY_ID } from './secteurs.js';
 import { prixCible } from './valorisation.js';
+import { publierDeclarations } from './seuils.js';
 
 // ---------- UNIVERS ----------
 export function genererSociete(r, secId, nom, idx, rangTaille) {
@@ -99,6 +100,7 @@ export function nouvellePartie(graine = Math.floor(Math.random() * 1e9), options
     }
     cp.histFortune.push(fortune(s, rd.id));
   }
+  publierDeclarations(s);   // état initial des déclarations, sans annonce
   const capitalIA = RAIDERS[0].cash * ia.capital;
   const reference = reglages.difficulte === 'normal' && reglages.niveauIA === 'normal';
   journal(s, 'info', `Vous démarrez avec ${s.joueur.cash} M€ et une ligne de crédit sur marge, ${capitalIA === dif.capital ? 'comme chacun de vos trois concurrents' : `face à trois concurrents qui en ont ${capitalIA} chacun`}.${reference ? '' : ` Réglages : ${dif.libelle}, concurrents ${ia.nom.toLowerCase()}.`} ${s.nbTours / 4} ans pour bâtir un empire.`, 'marche');

@@ -31,7 +31,8 @@ test('40 parties jouées au hasard respectent les invariants comptables', () => 
           }
           else if (x < 0.66) {
             // Manœuvres : rumeur sur n'importe quelle société, plainte d'une société contrôlée contre une autre
-            if (rnd() < 0.6) s = m.lancerRumeur(s, cible.id, 0.2 + rnd() * f * 0.05);
+            if (rnd() < 0.1 && ctrl.size) s = m.retraitObligatoire(s, J, pick([...ctrl]));
+            else if (rnd() < 0.6) s = m.lancerRumeur(s, cible.id, 0.2 + rnd() * f * 0.05);
             else if (ctrl.size) s = m.porterPlainte(s, pick([...ctrl]), cible.id);
           }
           else if (ctrl.size) {

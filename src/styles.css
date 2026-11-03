@@ -24,7 +24,7 @@
 .chiffre{display:flex;flex-direction:column;min-width:74px}
 .chiffre b{font-size:17px;font-weight:600;white-space:nowrap}
 .chiffre span{font-size:11px;color:var(--encre2)}
-.bandeau .fin{margin-left:auto}
+.bandeau .fin{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .nav{display:flex;border-bottom:1px solid var(--regle);background:var(--papier2)}
 .nav button{border:0;border-radius:0;padding:9px 16px;border-bottom:3px solid transparent}
 .nav button.actif{border-bottom-color:var(--encre);font-weight:600}
@@ -117,3 +117,6 @@ table.bilan tr.vous td{font-weight:600}
 @media (max-width:520px){ .grille{grid-template-columns:1fr} .ligne b{white-space:normal;text-align:right} }
 @media (prefers-reduced-motion:no-preference){ .modal{animation:surgir .15s ease-out} }
 @keyframes surgir{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+.modal.large{max-width:640px}
+.resume .journal li{grid-template-columns:1fr}
+.resume .ligne b .hausse,.resume .ligne b .baisse{font-weight:600}

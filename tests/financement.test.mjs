@@ -84,7 +84,7 @@ test('une holding emprunte sur ses participations et subit les covenants bancair
   let s = m.nouvellePartie(42);
   s = m.creerSociete(s, J, { type: 'holding', nom: 'Participations', capital: 20 });
   assert.equal(m.capaciteEmprunt(s.societes.F1, s), 0);
-  const c = m.actives(s).filter(x => !m.estHolding(x)).sort((a, b) => m.capi(a) - m.capi(b))[3];
+  const c = m.actives(s).filter(x => !m.estHolding(x) && m.capi(x) > 100).sort((a, b) => m.capi(a) - m.capi(b))[0];
   s = m.acheter(s, 'F1', c.id, 15);
   assert.ok(m.capaciteEmprunt(s.societes.F1, s) > 5);
   s = m.emprunter(s, 'F1', m.capaciteEmprunt(s.societes.F1, s));
