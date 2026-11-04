@@ -20,6 +20,7 @@ export * from './manoeuvres.js';
 export * from './decouvert.js';
 export * from './seuils.js';
 export * from './defense.js';
+export * from './crises.js';
 export * from './trimestre.js';
 export * from './invariants.js';
 export * from './courtage.js';

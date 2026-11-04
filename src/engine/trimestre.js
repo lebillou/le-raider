@@ -17,11 +17,15 @@ import { traiterManoeuvres } from './manoeuvres.js';
 import { gererDecouverts, solderDecouvertsFaillite } from './decouvert.js';
 import { publierDeclarations, reintroductions } from './seuils.js';
 import { traiterOffresHostiles } from './defense.js';
+import { enqueteAMF, evoluerBulle, krach, lancerBulle, raiderEnquete, texteBulle } from './crises.js';
 import { cloner, crediter, crediterRevenu } from './transactions.js';
 import { prixCible } from './valorisation.js';
 
 // ---------- FIN DE TRIMESTRE ----------
 export const EVENEMENTS = [
+  { id: 'krach', defavorable: true, p: 0.012, texte: 'Krach boursier : les cours perdent un quart en quelques séances ; la panique mettra des années à se dissiper.', effet: (s) => krach(s) },
+  { id: 'bulle', p: 0.02, possible: (s) => !s.bulle, texte: (s) => texteBulle(s), effet: (s) => lancerBulle(s) },
+  { id: 'amf', p: 0.02, possible: (s) => !!raiderEnquete(s), effet: (s) => enqueteAMF(s) },   // l'enquête écrit elle-même au journal
   { id: 'petrole', p: 0.03, texte: 'Choc pétrolier : les énergéticiens flambent, le transport encaisse.', effet: (s) => { s.conjSecteurs.energie += 0.6; s.conjSecteurs.transport -= 0.5; } },
   { id: 'crise', defavorable: true, p: 0.025, texte: 'Crise de confiance : la conjoncture se retourne brutalement.', effet: (s) => { s.conj = clamp(s.conj - 0.6, -1, 1); } },
   { id: 'boom', p: 0.03, texte: 'Euphorie technologique : les valeurs de croissance s\'envolent.', effet: (s) => { s.conjSecteurs.techno += 0.6; } },
@@ -57,11 +61,16 @@ export function finTrimestre(s0) {
   const dif = difficulte(s);
   for (const ev of EVENEMENTS) {
     if (r() > ev.p * (ev.defavorable ? dif.evenements : 1)) continue;
+    if (ev.possible && !ev.possible(s)) continue;
     if (ev.cible) {
       const c = socs[Math.floor(r() * socs.length)];
       ev.effet(s, c); journal(s, 'evenement', ev.texte(c));
-    } else { ev.effet(s); journal(s, 'evenement', ev.texte); }
+    } else {
+      ev.effet(s);
+      if (ev.texte) journal(s, 'evenement', typeof ev.texte === 'function' ? ev.texte(s) : ev.texte);
+    }
   }
+  evoluerBulle(s);
   // 2 bis. Manœuvres du joueur : enquêtes de l'AMF sur les rumeurs, décisions antitrust
   traiterManoeuvres(s, r);
 

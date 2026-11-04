@@ -4,6 +4,7 @@ import { gauss } from './alea.js';
 import { JOUEUR, RAIDERS, compte, niveauIA } from './config.js';
 import { controlees, natureControle, repartitionControle } from './controle.js';
 import { _deposerOffreHostile, attaquable } from './defense.js';
+import { interditDOffre } from './crises.js';
 import { journal } from './creation.js';
 import { MANDATS_MAX, _prendreMandat, _restructurer, mandatsDe, peutRestructurer, tailleRemun } from './dirigeants.js';
 import { capaciteEmprunt, detteTotale, ebitAnnuel } from './finance.js';
@@ -151,7 +152,7 @@ export function jouerRaiders(s, r) {
     }
 
     // 4. OPA : une cible libre, abordable, pas trop chère par rapport à l'estimation
-    if (r() < rd.pOpa * niv.audace) {
+    if (r() < rd.pOpa * niv.audace && !interditDOffre(s, rd.id)) {
       let meilleure = null, score = -1;
       const ctlIA = repartitionControle(s);
       for (const c of actives(s)) {
